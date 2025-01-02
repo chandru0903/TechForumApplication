@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,21 @@ import {
   SafeAreaView,
   Dimensions,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import axios from 'axios';
 
 
 const { width } = Dimensions.get('window');
+const api = axios.create({
+  baseURL: 'https://newsdata.io/api/1/news?apikey=pub_6352813b93c086b17c8e10b8cf1924b21507e&q=technology', 
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+    
+  }
+});
 
 const HomeScreen = () => {
   const [communities] = useState([
@@ -46,36 +56,357 @@ const HomeScreen = () => {
     isDisliked: false
   });
 
+  
+
+  const [trendingPosts, setTrendingPosts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [isCommentsVisible, setIsCommentsVisible] = useState(false);
+  const [selectedPost, setSelectedPost] = useState(null);
   const [newComment, setNewComment] = useState('');
-  const [comments, setComments] = useState([]);
+  const [isPostDetailVisible, setIsPostDetailVisible] = useState(false);
 
-  const handleLike = () => {
-    setWelcomePost(prev => ({
-      ...prev,
-      likes: prev.isLiked ? prev.likes - 1 : prev.likes + 1,
-      isLiked: !prev.isLiked,
-      isDisliked: false,
-      dislikes: prev.isDisliked ? prev.dislikes - 1 : prev.dislikes
-    }));
-  };
 
-  const handleDislike = () => {
-    setWelcomePost(prev => ({
-      ...prev,
-      dislikes: prev.isDisliked ? prev.dislikes - 1 : prev.dislikes + 1,
-      isDisliked: !prev.isDisliked,
-      isLiked: false,
-      likes: prev.isLiked ? prev.likes - 1 : prev.likes
-    }));
-  };
+  // Fetch posts when component mounts and when page changes
+  useEffect(() => {
+    fetchTrendingPosts();
+  }, [page]);
 
-  const handleAddComment = () => {
-    if (newComment.trim()) {
-      setComments([...comments, newComment.trim()]);
-      setNewComment('');
+  const fetchTrendingPosts = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await api.get('/posts', {
+        params: {
+          page,
+          limit: 10,
+          sort: 'trending'
+        }
+      });
+
+      const newPosts = response.data.posts.map(post => ({
+        ...post,
+        interactions: {
+          isLiked: false,
+          isDisliked: false,
+          likes: post.likes || 0,
+          dislikes: post.dislikes || 0,
+          comments: post.comments || []
+        }
+      }));
+
+      setTrendingPosts(prev => 
+        page === 1 ? newPosts : [...prev, ...newPosts]
+      );
+      setHasMore(response.data.hasMore);
+    } catch (err) {
+      setError('Failed to fetch posts. Please try again.');
+      console.error('Error fetching posts:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const handleLike = async (postId) => {
+    try {
+      const response = await api.post(`/posts/${postId}/like`);
+      
+      setTrendingPosts(prev => prev.map(post => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            interactions: {
+              ...post.interactions,
+              isLiked: !post.interactions.isLiked,
+              likes: post.interactions.isLiked 
+                ? post.interactions.likes - 1 
+                : post.interactions.likes + 1,
+              isDisliked: false,
+              dislikes: post.interactions.isDisliked 
+                ? post.interactions.dislikes - 1 
+                : post.interactions.dislikes
+            }
+          };
+        }
+        return post;
+      }));
+    } catch (err) {
+      console.error('Error liking post:', err);
+      // Show error toast/alert to user
+    }
+  };
+
+  const handleDislike = async (postId) => {
+    try {
+      const response = await api.post(`/posts/${postId}/dislike`);
+      
+      setTrendingPosts(prev => prev.map(post => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            interactions: {
+              ...post.interactions,
+              isDisliked: !post.interactions.isDisliked,
+              dislikes: post.interactions.isDisliked 
+                ? post.interactions.dislikes - 1 
+                : post.interactions.dislikes + 1,
+              isLiked: false,
+              likes: post.interactions.isLiked 
+                ? post.interactions.likes - 1 
+                : post.interactions.likes
+            }
+          };
+        }
+        return post;
+      }));
+    } catch (err) {
+      console.error('Error disliking post:', err);
+      // Show error toast/alert to user
+    }
+  };
+
+  const handleComment = async (postId, comment) => {
+    try {
+      const response = await api.post(`/posts/${postId}/comments`, {
+        content: comment
+      });
+      
+      setTrendingPosts(prev => prev.map(post => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            interactions: {
+              ...post.interactions,
+              comments: [...post.interactions.comments, response.data.comment]
+            }
+          };
+        }
+        return post;
+      }));
+    } catch (err) {
+      console.error('Error adding comment:', err);
+      // Show error toast/alert to user
+    }
+  };
+
+  const loadMorePosts = () => {
+    if (!isLoading && hasMore) {
+      setPage(prev => prev + 1);
+    }
+  };
+
+  const fetchPostDetails = async (postId) => {
+    try {
+      const response = await api.get(`/posts/${postId}`);
+      return response.data.post;
+    } catch (err) {
+      console.error('Error fetching post details:', err);
+      throw new Error('Failed to fetch post details');
+    }
+  };
+
+  const CommentsModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={isCommentsVisible}
+      onRequestClose={() => setIsCommentsVisible(false)}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Comments</Text>
+            <TouchableOpacity onPress={() => setIsCommentsVisible(false)}>
+              <MaterialIcons name="close" size={24} color="#000" />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.commentsList}>
+            {selectedPost?.interactions.comments.map((comment, index) => (
+              <View key={index} style={styles.commentItem}>
+                <View style={styles.commentHeader}>
+                  <Image
+                    source={{ uri: comment.author?.avatarUrl || 'https://via.placeholder.com/30' }}
+                    style={styles.commentAuthorAvatar}
+                  />
+                  <Text style={styles.commentAuthorName}>
+                    {comment.author?.name || 'Anonymous'}
+                  </Text>
+                </View>
+                <Text style={styles.commentText}>{comment.content}</Text>
+                <Text style={styles.commentTime}>
+                  {new Date(comment.createdAt).toLocaleDateString()}
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+
+          <View style={styles.commentInputContainer}>
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Write a comment..."
+              placeholderTextColor="#666"
+              value={newComment}
+              onChangeText={setNewComment}
+              multiline
+            />
+            <TouchableOpacity 
+              style={styles.sendButton}
+              onPress={() => {
+                if (selectedPost && newComment.trim()) {
+                  handleComment(selectedPost.id, newComment);
+                  setNewComment('');
+                }
+              }}
+            >
+              <MaterialIcons name="send" size={24} color="#007AFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
+
+  const renderTrendingSection = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Today's Trending</Text>
+      
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={() => {
+              setPage(1);
+              fetchTrendingPosts();
+            }}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {trendingPosts.map((post) => (
+        <TouchableOpacity 
+          key={post.id} 
+          style={[styles.postCard, { marginBottom: 15 }]}
+          onPress={async () => {
+            try {
+              const details = await fetchPostDetails(post.id);
+              setSelectedPost(details);
+              setIsPostDetailVisible(true);
+            } catch (err) {
+              // Show error toast/alert to user
+            }
+          }}
+        >
+          <View style={styles.postHeader}>
+            <View style={styles.postAuthor}>
+              <Image
+                source={{ uri: post.author.avatarUrl || 'https://via.placeholder.com/40' }}
+                style={styles.authorAvatar}
+              />
+              <View>
+                <Text style={styles.authorName}>{post.author.name}</Text>
+                <Text style={styles.postTime}>
+                  {new Date(post.createdAt).toLocaleDateString()}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity>
+              <MaterialIcons name="bookmark" size={20} color="#666" />
+            </TouchableOpacity>
+          </View>
+
+          {post.imageUrl && (
+            <Image
+              source={{ uri: post.imageUrl }}
+              style={styles.postImage}
+              resizeMode="cover"
+            />
+          )}
+
+          <Text style={styles.postTitle}>{post.title}</Text>
+          <Text style={styles.postContent} numberOfLines={3}>
+            {post.content}
+          </Text>
+
+          <View style={styles.postActions}>
+            <TouchableOpacity 
+              style={[
+                styles.actionButton, 
+                post.interactions.isLiked && styles.actionButtonActive
+              ]}
+              onPress={() => handleLike(post.id)}
+            >
+              <MaterialIcons 
+                name="thumb-up" 
+                size={16} 
+                color={post.interactions.isLiked ? "#007AFF" : "#666"} 
+              />
+              <Text style={[
+                styles.actionText, 
+                post.interactions.isLiked && styles.actionTextActive
+              ]}>
+                {post.interactions.likes}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => {
+                setSelectedPost(post);
+                setIsCommentsVisible(true);
+              }}
+            >
+              <MaterialIcons name="comment" size={16} color="#666" />
+              <Text style={styles.actionText}>
+                {post.interactions.comments.length}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[
+                styles.actionButton, 
+                post.interactions.isDisliked && styles.actionButtonActive
+              ]}
+              onPress={() => handleDislike(post.id)}
+            >
+              <MaterialIcons 
+                name="thumb-down" 
+                size={16} 
+                color={post.interactions.isDisliked ? "#007AFF" : "#666"} 
+              />
+              <Text style={[
+                styles.actionText, 
+                post.interactions.isDisliked && styles.actionTextActive
+              ]}>
+                {post.interactions.dislikes}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      ))}
+
+      {isLoading && (
+        <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+      )}
+
+      {!isLoading && hasMore && (
+        <TouchableOpacity 
+          style={styles.loadMoreButton}
+          onPress={loadMorePosts}
+        >
+          <Text style={styles.loadMoreButtonText}>Load More</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -195,6 +526,52 @@ const HomeScreen = () => {
             </View>
           </View>
         </View>
+        {/* Today's Trending */}
+<View style={styles.section}>
+  <Text style={styles.sectionTitle}>Today's Trending</Text>
+  {isLoading ? (
+    <ActivityIndicator size="large" color="#007AFF" />
+  ) : trendingNews ? (
+    <View style={styles.postCard}>
+      <View style={styles.postHeader}>
+        <View style={styles.postAuthor}>
+          <Image
+            source={{ uri: trendingNews.image_url || 'https://via.placeholder.com/40' }}
+            style={styles.trendingAuthorAvatar}
+          />
+          <View>
+            <Text style={styles.authorName}>{trendingNews.source_id}</Text>
+            <Text style={styles.postTime}>{new Date(trendingNews.pubDate).toLocaleDateString()}</Text>
+          </View>
+        </View>
+        <TouchableOpacity>
+          <MaterialIcons name="bookmark" size={20} color="#666" />
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.postTitle}>{trendingNews.title}</Text>
+      <Text style={styles.postContent} numberOfLines={3}>
+        {trendingNews.description}
+      </Text>
+      <View style={styles.postActions}>
+        <TouchableOpacity style={styles.actionButton}>
+          <MaterialIcons name="thumb-up" size={16} color="#666" />
+          <Text style={styles.actionText}>Like</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionButton}>
+          <MaterialIcons name="comment" size={16} color="#666" />
+          <Text style={styles.actionText}>Comment</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionButton}>
+          <MaterialIcons name="share" size={16} color="#666" />
+          <Text style={styles.actionText}>Share</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  ) : (
+    <Text style={styles.noNewsText}>No trending news available at the moment.</Text>
+  )}
+</View>
+
       </ScrollView>
 
       {/* Comments Modal */}
@@ -483,6 +860,136 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  trendingAuthorAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  noNewsText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 20,
+  },
 });
 
+const additionalStyles = StyleSheet.create({
+  errorContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#ff3b30',
+    marginBottom: 10,
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 5,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  postImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  loader: {
+    marginVertical: 20,
+  },
+  loadMoreButton: {
+    backgroundColor: '#f0f0f0',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  loadMoreButtonText: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: '80%',
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  commentsList: {
+    flex: 1,
+  },
+  commentItem: {
+    marginBottom: 15,
+    padding: 10,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 10,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  commentAuthorAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    marginRight: 10,
+  },
+  commentAuthorName: {
+    fontWeight: '500',
+    fontSize: 14,
+  },
+  commentText: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 5,
+  },
+  commentTime: {
+    fontSize: 12,
+    color: '#666',
+  },
+  commentInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderColor: '#eee',
+    paddingTop: 15,
+  },
+  commentInput: {
+    flex: 1,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    marginRight: 10,
+    maxHeight: 100,
+  },
+  sendButton: {
+    padding: 5,
+  },
+});
+
+
+// Merge the additional styles with the existing styles
+Object.assign(styles, additionalStyles);
 export default HomeScreen;
