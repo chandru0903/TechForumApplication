@@ -15,18 +15,18 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import axios from 'axios';
 
-
 const { width } = Dimensions.get('window');
+
 const api = axios.create({
-  baseURL: 'https://newsdata.io/api/1/news?apikey=pub_6352813b93c086b17c8e10b8cf1924b21507e&q=technology', 
+  baseURL: 'd32b11ccdb7b42598dbcdc6fe22f96ec',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
-    
   }
 });
 
 const HomeScreen = () => {
+  // State definitions
   const [communities] = useState([
     { 
       id: 1, 
@@ -56,221 +56,66 @@ const HomeScreen = () => {
     isDisliked: false
   });
 
-  
-
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [isCommentsVisible, setIsCommentsVisible] = useState(false);
   const [trendingPosts, setTrendingPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [isCommentsVisible, setIsCommentsVisible] = useState(false);
-  const [selectedPost, setSelectedPost] = useState(null);
-  const [newComment, setNewComment] = useState('');
-  const [isPostDetailVisible, setIsPostDetailVisible] = useState(false);
 
+  // Handle adding comments
+  const handleAddComment = () => {
+    if (newComment.trim()) {
+      setComments([...comments, newComment]);
+      setNewComment('');
+    }
+  };
 
-  // Fetch posts when component mounts and when page changes
-  useEffect(() => {
-    fetchTrendingPosts();
-  }, [page]);
-
+  // Fetch trending posts
   const fetchTrendingPosts = async () => {
     try {
       setIsLoading(true);
       setError(null);
       
-      const response = await api.get('/posts', {
-        params: {
-          page,
-          limit: 10,
-          sort: 'trending'
-        }
-      });
-
-      const newPosts = response.data.posts.map(post => ({
-        ...post,
-        interactions: {
-          isLiked: false,
-          isDisliked: false,
-          likes: post.likes || 0,
-          dislikes: post.dislikes || 0,
-          comments: post.comments || []
-        }
-      }));
-
-      setTrendingPosts(prev => 
-        page === 1 ? newPosts : [...prev, ...newPosts]
-      );
-      setHasMore(response.data.hasMore);
+      const response = await api.get('');
+      
+      if (response && response.data && response.data.results) {
+        const formattedPosts = response.data.results.map(post => ({
+          id: post.article_id || Math.random().toString(),
+          title: post.title || 'No Title',
+          content: post.description || 'No Description',
+          author: {
+            name: post.source_id || 'Unknown Source',
+            avatarUrl: post.image_url || 'https://via.placeholder.com/40'
+          },
+          createdAt: post.pubDate || new Date().toISOString(),
+          interactions: {
+            isLiked: false,
+            isDisliked: false,
+            likes: 0,
+            dislikes: 0,
+            comments: []
+          }
+        }));
+        
+        setTrendingPosts(formattedPosts);
+      } else {
+        setError('No posts available');
+      }
     } catch (err) {
-      setError('Failed to fetch posts. Please try again.');
       console.error('Error fetching posts:', err);
+      setError('Failed to fetch posts. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleLike = async (postId) => {
-    try {
-      const response = await api.post(`/posts/${postId}/like`);
-      
-      setTrendingPosts(prev => prev.map(post => {
-        if (post.id === postId) {
-          return {
-            ...post,
-            interactions: {
-              ...post.interactions,
-              isLiked: !post.interactions.isLiked,
-              likes: post.interactions.isLiked 
-                ? post.interactions.likes - 1 
-                : post.interactions.likes + 1,
-              isDisliked: false,
-              dislikes: post.interactions.isDisliked 
-                ? post.interactions.dislikes - 1 
-                : post.interactions.dislikes
-            }
-          };
-        }
-        return post;
-      }));
-    } catch (err) {
-      console.error('Error liking post:', err);
-      // Show error toast/alert to user
-    }
-  };
+  // Initial fetch
+  useEffect(() => {
+    fetchTrendingPosts();
+  }, []);
 
-  const handleDislike = async (postId) => {
-    try {
-      const response = await api.post(`/posts/${postId}/dislike`);
-      
-      setTrendingPosts(prev => prev.map(post => {
-        if (post.id === postId) {
-          return {
-            ...post,
-            interactions: {
-              ...post.interactions,
-              isDisliked: !post.interactions.isDisliked,
-              dislikes: post.interactions.isDisliked 
-                ? post.interactions.dislikes - 1 
-                : post.interactions.dislikes + 1,
-              isLiked: false,
-              likes: post.interactions.isLiked 
-                ? post.interactions.likes - 1 
-                : post.interactions.likes
-            }
-          };
-        }
-        return post;
-      }));
-    } catch (err) {
-      console.error('Error disliking post:', err);
-      // Show error toast/alert to user
-    }
-  };
-
-  const handleComment = async (postId, comment) => {
-    try {
-      const response = await api.post(`/posts/${postId}/comments`, {
-        content: comment
-      });
-      
-      setTrendingPosts(prev => prev.map(post => {
-        if (post.id === postId) {
-          return {
-            ...post,
-            interactions: {
-              ...post.interactions,
-              comments: [...post.interactions.comments, response.data.comment]
-            }
-          };
-        }
-        return post;
-      }));
-    } catch (err) {
-      console.error('Error adding comment:', err);
-      // Show error toast/alert to user
-    }
-  };
-
-  const loadMorePosts = () => {
-    if (!isLoading && hasMore) {
-      setPage(prev => prev + 1);
-    }
-  };
-
-  const fetchPostDetails = async (postId) => {
-    try {
-      const response = await api.get(`/posts/${postId}`);
-      return response.data.post;
-    } catch (err) {
-      console.error('Error fetching post details:', err);
-      throw new Error('Failed to fetch post details');
-    }
-  };
-
-  const CommentsModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={isCommentsVisible}
-      onRequestClose={() => setIsCommentsVisible(false)}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Comments</Text>
-            <TouchableOpacity onPress={() => setIsCommentsVisible(false)}>
-              <MaterialIcons name="close" size={24} color="#000" />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView style={styles.commentsList}>
-            {selectedPost?.interactions.comments.map((comment, index) => (
-              <View key={index} style={styles.commentItem}>
-                <View style={styles.commentHeader}>
-                  <Image
-                    source={{ uri: comment.author?.avatarUrl || 'https://via.placeholder.com/30' }}
-                    style={styles.commentAuthorAvatar}
-                  />
-                  <Text style={styles.commentAuthorName}>
-                    {comment.author?.name || 'Anonymous'}
-                  </Text>
-                </View>
-                <Text style={styles.commentText}>{comment.content}</Text>
-                <Text style={styles.commentTime}>
-                  {new Date(comment.createdAt).toLocaleDateString()}
-                </Text>
-              </View>
-            ))}
-          </ScrollView>
-
-          <View style={styles.commentInputContainer}>
-            <TextInput
-              style={styles.commentInput}
-              placeholder="Write a comment..."
-              placeholderTextColor="#666"
-              value={newComment}
-              onChangeText={setNewComment}
-              multiline
-            />
-            <TouchableOpacity 
-              style={styles.sendButton}
-              onPress={() => {
-                if (selectedPost && newComment.trim()) {
-                  handleComment(selectedPost.id, newComment);
-                  setNewComment('');
-                }
-              }}
-            >
-              <MaterialIcons name="send" size={24} color="#007AFF" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-
-
+  // Render trending section
   const renderTrendingSection = () => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Today's Trending</Text>
@@ -280,138 +125,69 @@ const HomeScreen = () => {
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity 
             style={styles.retryButton}
-            onPress={() => {
-              setPage(1);
-              fetchTrendingPosts();
-            }}
+            onPress={fetchTrendingPosts}
           >
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {trendingPosts.map((post) => (
-        <TouchableOpacity 
-          key={post.id} 
-          style={[styles.postCard, { marginBottom: 15 }]}
-          onPress={async () => {
-            try {
-              const details = await fetchPostDetails(post.id);
-              setSelectedPost(details);
-              setIsPostDetailVisible(true);
-            } catch (err) {
-              // Show error toast/alert to user
-            }
-          }}
-        >
-          <View style={styles.postHeader}>
-            <View style={styles.postAuthor}>
-              <Image
-                source={{ uri: post.author.avatarUrl || 'https://via.placeholder.com/40' }}
-                style={styles.authorAvatar}
-              />
-              <View>
-                <Text style={styles.authorName}>{post.author.name}</Text>
-                <Text style={styles.postTime}>
-                  {new Date(post.createdAt).toLocaleDateString()}
-                </Text>
+      {isLoading ? (
+        <ActivityIndicator size="large" color="#007AFF" />
+      ) : (
+        trendingPosts.map((post) => (
+          <View key={post.id} style={styles.postCard}>
+            <View style={styles.postHeader}>
+              <View style={styles.postAuthor}>
+                <Image
+                  source={{ uri: post.author.avatarUrl }}
+                  style={styles.authorAvatar}
+                />
+                <View>
+                  <Text style={styles.authorName}>{post.author.name}</Text>
+                  <Text style={styles.postTime}>
+                    {new Date(post.createdAt).toLocaleDateString()}
+                  </Text>
+                </View>
               </View>
+              <TouchableOpacity>
+                <MaterialIcons name="bookmark" size={20} color="#666" />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity>
-              <MaterialIcons name="bookmark" size={20} color="#666" />
-            </TouchableOpacity>
+            
+            <Text style={styles.postTitle}>{post.title}</Text>
+            <Text style={styles.postContent} numberOfLines={3}>
+              {post.content}
+            </Text>
+            
+            <View style={styles.postActions}>
+              <TouchableOpacity style={styles.actionButton}>
+                <MaterialIcons name="thumb-up" size={16} color="#666" />
+                <Text style={styles.actionText}>Like</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.actionButton}>
+                <MaterialIcons name="comment" size={16} color="#666" />
+                <Text style={styles.actionText}>Comment</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.actionButton}>
+                <MaterialIcons name="share" size={16} color="#666" />
+                <Text style={styles.actionText}>Share</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-
-          {post.imageUrl && (
-            <Image
-              source={{ uri: post.imageUrl }}
-              style={styles.postImage}
-              resizeMode="cover"
-            />
-          )}
-
-          <Text style={styles.postTitle}>{post.title}</Text>
-          <Text style={styles.postContent} numberOfLines={3}>
-            {post.content}
-          </Text>
-
-          <View style={styles.postActions}>
-            <TouchableOpacity 
-              style={[
-                styles.actionButton, 
-                post.interactions.isLiked && styles.actionButtonActive
-              ]}
-              onPress={() => handleLike(post.id)}
-            >
-              <MaterialIcons 
-                name="thumb-up" 
-                size={16} 
-                color={post.interactions.isLiked ? "#007AFF" : "#666"} 
-              />
-              <Text style={[
-                styles.actionText, 
-                post.interactions.isLiked && styles.actionTextActive
-              ]}>
-                {post.interactions.likes}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => {
-                setSelectedPost(post);
-                setIsCommentsVisible(true);
-              }}
-            >
-              <MaterialIcons name="comment" size={16} color="#666" />
-              <Text style={styles.actionText}>
-                {post.interactions.comments.length}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[
-                styles.actionButton, 
-                post.interactions.isDisliked && styles.actionButtonActive
-              ]}
-              onPress={() => handleDislike(post.id)}
-            >
-              <MaterialIcons 
-                name="thumb-down" 
-                size={16} 
-                color={post.interactions.isDisliked ? "#007AFF" : "#666"} 
-              />
-              <Text style={[
-                styles.actionText, 
-                post.interactions.isDisliked && styles.actionTextActive
-              ]}>
-                {post.interactions.dislikes}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      ))}
-
-      {isLoading && (
-        <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
-      )}
-
-      {!isLoading && hasMore && (
-        <TouchableOpacity 
-          style={styles.loadMoreButton}
-          onPress={loadMorePosts}
-        >
-          <Text style={styles.loadMoreButtonText}>Load More</Text>
-        </TouchableOpacity>
+        ))
       )}
     </View>
   );
 
 
+  
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        {/* Cherry Blossom Background */}
+        {/* Background Image */}
         <View style={styles.bgImageContainer}>
           <Image 
             source={require('./assets/HomeBackground.png')}
@@ -425,7 +201,7 @@ const HomeScreen = () => {
           <TouchableOpacity style={styles.menuButton}>
             <MaterialIcons name="menu" size={24} color="#000" />
           </TouchableOpacity>
-          <Text style={styles.headerText}>Hi, ABC</Text>
+          
           <TouchableOpacity>
             <Image 
               source={require('./assets/Profile.png')}
@@ -433,6 +209,7 @@ const HomeScreen = () => {
             />
           </TouchableOpacity>
         </View>
+        <Text style={styles.headerText}>Hi, ABC</Text>
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>
@@ -490,7 +267,11 @@ const HomeScreen = () => {
             <View style={styles.postActions}>
               <TouchableOpacity 
                 style={[styles.actionButton, welcomePost.isLiked && styles.actionButtonActive]}
-                onPress={handleLike}
+                onPress={() => setWelcomePost(prev => ({
+                  ...prev,
+                  isLiked: !prev.isLiked,
+                  likes: prev.isLiked ? prev.likes - 1 : prev.likes + 1
+                }))}
               >
                 <MaterialIcons 
                   name="thumb-up" 
@@ -512,7 +293,11 @@ const HomeScreen = () => {
 
               <TouchableOpacity 
                 style={[styles.actionButton, welcomePost.isDisliked && styles.actionButtonActive]}
-                onPress={handleDislike}
+                onPress={() => setWelcomePost(prev => ({
+                  ...prev,
+                  isDisliked: !prev.isDisliked,
+                  dislikes: prev.isDisliked ? prev.dislikes - 1 : prev.dislikes + 1
+                }))}
               >
                 <MaterialIcons 
                   name="thumb-down" 
@@ -526,52 +311,54 @@ const HomeScreen = () => {
             </View>
           </View>
         </View>
-        {/* Today's Trending */}
-<View style={styles.section}>
-  <Text style={styles.sectionTitle}>Today's Trending</Text>
-  {isLoading ? (
-    <ActivityIndicator size="large" color="#007AFF" />
-  ) : trendingNews ? (
-    <View style={styles.postCard}>
-      <View style={styles.postHeader}>
-        <View style={styles.postAuthor}>
-          <Image
-            source={{ uri: trendingNews.image_url || 'https://via.placeholder.com/40' }}
-            style={styles.trendingAuthorAvatar}
-          />
-          <View>
-            <Text style={styles.authorName}>{trendingNews.source_id}</Text>
-            <Text style={styles.postTime}>{new Date(trendingNews.pubDate).toLocaleDateString()}</Text>
-          </View>
-        </View>
-        <TouchableOpacity>
-          <MaterialIcons name="bookmark" size={20} color="#666" />
-        </TouchableOpacity>
-      </View>
-      <Text style={styles.postTitle}>{trendingNews.title}</Text>
-      <Text style={styles.postContent} numberOfLines={3}>
-        {trendingNews.description}
-      </Text>
-      <View style={styles.postActions}>
-        <TouchableOpacity style={styles.actionButton}>
-          <MaterialIcons name="thumb-up" size={16} color="#666" />
-          <Text style={styles.actionText}>Like</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
-          <MaterialIcons name="comment" size={16} color="#666" />
-          <Text style={styles.actionText}>Comment</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
-          <MaterialIcons name="share" size={16} color="#666" />
-          <Text style={styles.actionText}>Share</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  ) : (
-    <Text style={styles.noNewsText}>No trending news available at the moment.</Text>
-  )}
-</View>
 
+        {/* Today's Trending */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Today's Trending</Text>
+          {isLoading ? (
+            <ActivityIndicator size="large" color="#007AFF" />
+          ) : error ? (
+            <Text style={styles.errorText}>{error}</Text>
+          ) : trendingNews ? (
+            <View style={styles.postCard}>
+              <View style={styles.postHeader}>
+                <View style={styles.postAuthor}>
+                  <Image
+                    source={{ uri: trendingNews.image_url || 'https://via.placeholder.com/40' }}
+                    style={styles.trendingAuthorAvatar}
+                  />
+                  <View>
+                    <Text style={styles.authorName}>{trendingNews.source_id}</Text>
+                    <Text style={styles.postTime}>{new Date(trendingNews.pubDate).toLocaleDateString()}</Text>
+                  </View>
+                </View>
+                <TouchableOpacity>
+                  <MaterialIcons name="bookmark" size={20} color="#666" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.postTitle}>{trendingNews.title}</Text>
+              <Text style={styles.postContent} numberOfLines={3}>
+                {trendingNews.description}
+              </Text>
+              <View style={styles.postActions}>
+                <TouchableOpacity style={styles.actionButton}>
+                  <MaterialIcons name="thumb-up" size={16} color="#666" />
+                  <Text style={styles.actionText}>Like</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton}>
+                  <MaterialIcons name="comment" size={16} color="#666" />
+                  <Text style={styles.actionText}>Comment</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton}>
+                  <MaterialIcons name="share" size={16} color="#666" />
+                  <Text style={styles.actionText}>Share</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <Text style={styles.noNewsText}>No trending news available at the moment.</Text>
+          )}
+        </View>
       </ScrollView>
 
       {/* Comments Modal */}
@@ -591,7 +378,19 @@ const HomeScreen = () => {
             </View>
             <ScrollView style={styles.commentsList}>
               {comments.map((comment, index) => (
-                <Text key={index} style={styles.commentText}>{comment}</Text>
+                <View key={index} style={styles.commentItem}>
+                  <View style={styles.commentHeader}>
+                    <Image
+                      source={{ uri: 'https://via.placeholder.com/30' }}
+                      style={styles.commentAuthorAvatar}
+                    />
+                    <Text style={styles.commentAuthorName}>User {index + 1}</Text>
+                  </View>
+                  <Text style={styles.commentText}>{comment}</Text>
+                  <Text style={styles.commentTime}>
+                    {new Date().toLocaleDateString()}
+                  </Text>
+                </View>
               ))}
             </ScrollView>
             <View style={styles.commentInputContainer}>
@@ -601,8 +400,12 @@ const HomeScreen = () => {
                 placeholderTextColor="#666"
                 value={newComment}
                 onChangeText={setNewComment}
+                multiline
               />
-              <TouchableOpacity onPress={handleAddComment}>
+              <TouchableOpacity 
+                style={styles.sendButton}
+                onPress={handleAddComment}
+              >
                 <MaterialIcons name="send" size={24} color="#007AFF" />
               </TouchableOpacity>
             </View>
@@ -612,7 +415,6 @@ const HomeScreen = () => {
     </SafeAreaView>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -627,10 +429,12 @@ const styles = StyleSheet.create({
   bgImageContainer: {
     position: 'absolute',
     top: 0,
+    bottom: 100,
     right: 0,
-    width: 200,
-    height: 200,
-    opacity: 0.5,
+    width: 400,
+    height: 150,
+    opacity: 10.0,
+    
   },
   bgImage: {
     width: '100%',
@@ -644,8 +448,12 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   headerText: {
+    marginRight: 100,
+    marginLeft: 20,
+    marginTop: 10,
     fontSize: 24,
     fontWeight: '600',
+    alignContent: 'center',
   },
   profilePic: {
     width: 32,
@@ -656,7 +464,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 20,
-    marginTop: 20,
+    marginTop: 25,
     paddingHorizontal: 15,
     height: 45,
     backgroundColor: '#fff',
