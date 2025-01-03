@@ -9,6 +9,7 @@
         "Codegen",
         "dont",
         "hermesc",
+        "Ninte",
         "proguard",
         "rootproject",
         "tada",
@@ -17,5 +18,6 @@
         "vectoricons",
         "xcodeproj"
     ],
-    "java.configuration.updateBuildConfiguration": "interactive"
+    "java.configuration.updateBuildConfiguration": "interactive",
+    "java.compile.nullAnalysis.mode": "automatic"
 }

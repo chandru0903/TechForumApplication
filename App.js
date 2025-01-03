@@ -9,6 +9,9 @@ import SettingsScreen from './screens/SettingsScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
 import ChangePasswordScreen from './screens/ChangePasswordScreen';
 import NotificationsScreen from './screens/NotificationsSettingsScreen';
+import CommunityScreen from './screens/CommunityScreen';
+import WritePostScreen from './screens/WritePostScreen';
+
 
 const Stack = createStackNavigator();
 
@@ -17,7 +20,7 @@ export default function App() {
     <DarkModeProvider>
     <NavigationContainer>
       <Stack.Navigator 
-        initialRouteName="HomeScreen"
+        initialRouteName="Community"
         screenOptions={{
           headerShown: false,
           cardStyleInterpolator: ({ current, next, layouts }) => {
@@ -37,6 +40,10 @@ export default function App() {
           gestureDirection: 'horizontal', // Horizontal swipe gesture
         }}
       >
+        <Stack.Screen
+          name="Community"
+          component={CommunityScreen}
+        />
         <Stack.Screen
           name="HomeScreen"
           component={HomeScreen}
@@ -58,6 +65,10 @@ export default function App() {
           name="Notifications"
           component={NotificationsScreen}
           />
+          <Stack.Screen 
+          name="WritePost"
+          component={WritePostScreen}/>
+          
       </Stack.Navigator>
     </NavigationContainer>
     </DarkModeProvider>
