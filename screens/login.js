@@ -1,26 +1,91 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Animated } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { Checkbox } from 'react-native-paper';
+import axios from 'axios';
+import { CommonActions } from '@react-navigation/native';
+import { apiUrl } from './config';
 
-const Login = () => {
+const Login = ({ navigation }) => {
   const [isChecked, setIsChecked] = useState(false);
-  const [animatedColor] = useState(new Animated.Value(0)); // Animated value for color transition
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleCheckboxPress = () => {
-    setIsChecked(!isChecked);
-
-    // Start the animation for the checkbox color
-    Animated.timing(animatedColor, {
-      toValue: isChecked ? 0 : 1, // Toggle between 0 (dark grey) and 1 (dark blue)
-      duration: 300,
-      useNativeDriver: false, // We need to update styles, so we can't use native driver
-    }).start();
+  const validateEmail = (email) => {
+    const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+    if (!email) {
+      setEmailError('Email is required');
+      return false;
+    } else if (!emailRegex.test(email)) {
+      setEmailError('Please enter a valid email address');
+      return false;
+    }
+    setEmailError('');
+    return true;
   };
 
-  // Interpolating color values based on the animated value
-  const checkboxColor = animatedColor.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['#2C2F36', '#1E252B'], // Dark grey to dark blue
-  });
+  const validatePassword = (password) => {
+    if (!password) {
+      setPasswordError('Password is required');
+      return false;
+    }
+    setPasswordError('');
+    return true;
+  };
+
+  const handleLogin = async () => {
+    const isEmailValid = validateEmail(email);
+    const isPasswordValid = validatePassword(password);
+  
+    if (isEmailValid && isPasswordValid) {
+      setLoading(true);
+      setEmailError('');
+      setPasswordError('');
+  
+      try {
+        console.log('Attempting login with:', { email, password }); // Log the request data
+        
+        const response = await axios.post(`${apiUrl}/login.php`, {
+          email: email.trim(),
+          password: password.trim()
+        });
+        
+        console.log('Full response:', response); // Log the full response
+        console.log('Response data:', response.data); // Log just the response data
+        
+        if (response.data.success) {
+          navigation.dispatch(
+            CommonActions.reset({
+              index: 0,
+              routes: [{ name: 'HomeScreen' }],
+            })
+          );
+        } else {
+          Alert.alert('Login Failed', response.data.message);
+        }
+      } catch (error) {
+        console.log('Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+        
+        Alert.alert(
+          'Login Error',
+          error.response?.data?.message || 'Unable to connect to the server'
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleCheckboxPress = (newValue) => {
+    setIsChecked(newValue);
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -32,50 +97,72 @@ const Login = () => {
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, emailError && styles.inputError]}
               placeholder="Enter your email"
-              placeholderTextColor="#fff"
+              placeholderTextColor="#666"
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (emailError) validateEmail(text);
+              }}
+              keyboardType="email-address"
+              autoCapitalize="none"
             />
+            {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
           </View>
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your password"
-              placeholderTextColor="#fff"
-              secureTextEntry
-            />
-            <TouchableOpacity style={styles.forgotPasswordContainer}>
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[styles.input, styles.passwordInput, passwordError && styles.inputError]}
+                placeholder="Enter your password"
+                placeholderTextColor="#666"
+                secureTextEntry={!passwordVisible}
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (passwordError) validatePassword(text);
+                }}
+              />
+              <TouchableOpacity
+                style={styles.visibilityToggle}
+                onPress={() => setPasswordVisible(!passwordVisible)}
+              >
+                <Text>{passwordVisible ? '🙉' : '🙈'}</Text>
+              </TouchableOpacity>
+            </View>
+            {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+            <TouchableOpacity
+              style={styles.forgotPasswordContainer}
+              onPress={() => navigation.navigate('ForgotPassword')}
+            >
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.rememberMeContainer}>
-            <TouchableOpacity onPress={handleCheckboxPress}>
-              <View style={styles.checkboxContainer}>
-                <Animated.View
-                  style={[
-                    styles.checkbox,
-                    {
-                      backgroundColor: checkboxColor,
-                    },
-                  ]}
-                >
-                  {isChecked && <View style={styles.checkboxCheckmark} />}
-                </Animated.View>
-                <Text style={styles.rememberMeText}>Remember Me</Text>
-              </View>
+            <Checkbox
+              status={isChecked ? 'checked' : 'unchecked'}
+              onPress={() => setIsChecked(!isChecked)}
+              color="#BEB4FF"
+            />
+            <TouchableOpacity onPress={() => setIsChecked(!isChecked)}>
+              <Text style={styles.rememberMeText}>Remember Me</Text>
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.loginButton}>
-            <Text style={styles.loginButtonText}>Login</Text>
+          <TouchableOpacity
+            style={[styles.loginButton, (!email || !password) && styles.loginButtonDisabled]}
+            onPress={handleLogin}
+            disabled={!email || !password || loading}
+          >
+            <Text style={styles.loginButtonText}>{loading ? 'Logging in...' : 'Login'}</Text>
           </TouchableOpacity>
 
           <View style={styles.createAccountContainer}>
             <Text style={styles.dontHaveAccountText}>Don't have an account? </Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
               <Text style={styles.createAccountText}>Create one</Text>
             </TouchableOpacity>
           </View>
@@ -85,7 +172,23 @@ const Login = () => {
   );
 };
 
+
+
+
 const styles = StyleSheet.create({
+  // ... existing styles ...
+  inputError: {
+    borderColor: '#FF4444',
+  },
+  errorText: {
+    color: '#FF4444',
+    fontSize: 12,
+    marginTop: 5,
+  },
+  loginButtonDisabled: {
+    backgroundColor: '#D3D3D3',
+    opacity: 0.7,
+  },
   container: {
     flex: 1,
     backgroundColor: '#1E252B',
@@ -139,15 +242,33 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     width: '100%',
-    height: 50, // Adjusted height
+    height: 50,
+  },
+  passwordInput: {
+    paddingRight: 40,
+  },
+  visibilityToggle: {
+    position: 'absolute',
+    right: 10,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  passwordContainer: {
+    position: 'relative',
+    width: '100%',
+  },
+  visibilityToggleText: {
+    color: '#fff',
+    fontSize: 18,
   },
   forgotPasswordContainer: {
     alignItems: 'flex-end',
     width: '100%',
-    marginTop: 5, // Adjust margin to place it correctly below the password input
+    marginTop: 5,
   },
   forgotPasswordText: {
-    color: '#BEB4FF', // Set the color to #BEB4FF
+    color: '#BEB4FF',
     fontSize: 14,
   },
   rememberMeContainer: {
@@ -155,36 +276,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 10,
     width: '100%',
-    justifyContent: 'space-between',
-  },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'flex-start',
   },
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 5,
-    borderWidth: 2,
-    borderColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
     marginRight: 10,
-    backgroundColor: '#2C2F36', // Slightly darker grey
-  },
-  checkboxCheckmark: {
-    width: 12,
-    height: 12,
-    backgroundColor: '#1E252B',
-    borderRadius: 3,
   },
   rememberMeText: {
     color: '#000',
-    fontSize: 14, // Same size as Forgot Password
-    marginLeft: 5,
+    fontSize: 14,
   },
   loginButton: {
-    backgroundColor: '#BEB4FF', // Set the color to #BEB4FF
+    backgroundColor: '#BEB4FF',
     padding: 15,
     borderRadius: 5,
     alignItems: 'center',
@@ -208,10 +310,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   createAccountText: {
-    color: '#BEB4FF', // Set the color to #BEB4FF
+    color: '#BEB4FF',
     fontSize: 16,
     fontWeight: 'bold',
   },
 });
-
-export default Login ;
+export default Login;

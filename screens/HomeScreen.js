@@ -1,53 +1,81 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  ScrollView,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  SafeAreaView,
-  Dimensions,
-  Modal,
-  ActivityIndicator,
+  View, Text, TextInput, ScrollView, Image, StyleSheet, 
+  TouchableOpacity, SafeAreaView, Dimensions, Modal,
+  ActivityIndicator, Animated, RefreshControl
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import axios from 'axios';
+import { useDarkMode } from './Context/DarkMode';
 
 const { width } = Dimensions.get('window');
 
 const api = axios.create({
-  baseURL: 'd32b11ccdb7b42598dbcdc6fe22f96ec',
+  baseURL: 'https://newsdata.io/api/1/news?apikey=pub_6352813b93c086b17c8e10b8cf1924b21507e&q=teachnology',
   timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  }
+  headers: { 'Content-Type': 'application/json' }
 });
 
-const HomeScreen = () => {
-  // State definitions
-  const [communities] = useState([
-    { 
-      id: 1, 
-      name: 'C++', 
-      members: '7,800',
-      icon: require('./assets/CPP.png')
-    },
-    { 
-      id: 2, 
-      name: 'Space X', 
-      members: '14,240',
-      icon: require('./assets/space.png')
-    },
-    { 
-      id: 3, 
-      name: 'Figma', 
-      members: '22,150',
-      icon: require('./assets/Figma.png')
-    }
-  ]);
+const OverlayMenu = ({ isVisible, onClose, darkMode, navigation }) => {
+  const slideAnimation = React.useRef(new Animated.Value(-width)).current;
+  const menuItems = [
+    { icon: 'home', label: 'Home', route: 'HomeScreen' },
+    { icon: 'person', label: 'Profile', route: 'UserProfile' },
+    { icon: 'group', label: 'Community', route: 'Communities' },
+    { icon: 'settings', label: 'Settings', route: 'Settings' },
+    { icon: 'notifications', label: 'Notifications', route: 'Notifications' },
+    { icon: 'bookmark', label: 'Saved', route: 'Saved' }
+  ];
 
+  useEffect(() => {
+    Animated.timing(slideAnimation, {
+      toValue: isVisible ? 0 : -width,
+      duration: 300,
+      useNativeDriver: true
+    }).start();
+  }, [isVisible]);
+
+  return (
+    <Animated.View style={[styles.overlay, {
+      transform: [{ translateX: slideAnimation }],
+      backgroundColor: darkMode ? '#1a1a1a' : '#fff'
+    }]}>
+      <View style={styles.overlayHeader}>
+        <TouchableOpacity onPress={onClose}>
+          <MaterialIcons name="close" size={24} color={darkMode ? '#fff' : '#000'} />
+        </TouchableOpacity>
+      </View>
+      
+      {menuItems.map((item, index) => (
+        <TouchableOpacity
+          key={index}
+          style={[styles.overlayItem, { backgroundColor: darkMode ? '#2d2d2d' : '#f5f5f5' }]}
+          onPress={() => {
+            navigation.navigate(item.route);
+            onClose();
+          }}
+        >
+          <MaterialIcons name={item.icon} size={24} color={darkMode ? '#fff' : '#000'} />
+          <Text style={[styles.overlayText, { color: darkMode ? '#fff' : '#000' }]}>
+            {item.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </Animated.View>
+  );
+};
+
+const HomeScreen = ({ navigation }) => {
+  const { darkMode } = useDarkMode();
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [trendingNews, setTrendingNews] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [isCommentsVisible, setIsCommentsVisible] = useState(false);
+  
   const [welcomePost, setWelcomePost] = useState({
     likes: 1500,
     comments: 889,
@@ -56,14 +84,35 @@ const HomeScreen = () => {
     isDisliked: false
   });
 
-  const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState('');
-  const [isCommentsVisible, setIsCommentsVisible] = useState(false);
-  const [trendingPosts, setTrendingPosts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [communities] = useState([
+    { id: 1, name: 'C++', members: '7,800', icon: require('./assets/CPP.png') },
+    { id: 2, name: 'Space X', members: '14,240', icon: require('./assets/space.png') },
+    { id: 3, name: 'Figma', members: '22,150', icon: require('./assets/Figma.png') },
+    { id: 4, name: 'GamesToDate', members: '35,600', icon: require('./assets/GamesToDate.png') }
+  ]);
 
-  // Handle adding comments
+  const fetchTrendingPosts = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await api.get('');
+      if (response?.data?.results?.length > 0) {
+        setTrendingNews(response.data.results[0]);
+      } else {
+        setError('No posts available');
+      }
+    } catch (err) {
+      setError('Failed to fetch posts');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTrendingPosts();
+  }, []);
+
   const handleAddComment = () => {
     if (newComment.trim()) {
       setComments([...comments, newComment]);
@@ -71,246 +120,245 @@ const HomeScreen = () => {
     }
   };
 
-  // Fetch trending posts
-  const fetchTrendingPosts = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const response = await api.get('');
-      
-      if (response && response.data && response.data.results) {
-        const formattedPosts = response.data.results.map(post => ({
-          id: post.article_id || Math.random().toString(),
-          title: post.title || 'No Title',
-          content: post.description || 'No Description',
-          author: {
-            name: post.source_id || 'Unknown Source',
-            avatarUrl: post.image_url || 'https://via.placeholder.com/40'
-          },
-          createdAt: post.pubDate || new Date().toISOString(),
-          interactions: {
-            isLiked: false,
-            isDisliked: false,
-            likes: 0,
-            dislikes: 0,
-            comments: []
-          }
-        }));
-        
-        setTrendingPosts(formattedPosts);
-      } else {
-        setError('No posts available');
-      }
-    } catch (err) {
-      console.error('Error fetching posts:', err);
-      setError('Failed to fetch posts. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Initial fetch
-  useEffect(() => {
-    fetchTrendingPosts();
-  }, []);
-
-  // Render trending section
-  const renderTrendingSection = () => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Today's Trending</Text>
-      
-      {error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity 
-            style={styles.retryButton}
-            onPress={fetchTrendingPosts}
-          >
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {isLoading ? (
-        <ActivityIndicator size="large" color="#007AFF" />
-      ) : (
-        trendingPosts.map((post) => (
-          <View key={post.id} style={styles.postCard}>
-            <View style={styles.postHeader}>
-              <View style={styles.postAuthor}>
-                <Image
-                  source={{ uri: post.author.avatarUrl }}
-                  style={styles.authorAvatar}
-                />
-                <View>
-                  <Text style={styles.authorName}>{post.author.name}</Text>
-                  <Text style={styles.postTime}>
-                    {new Date(post.createdAt).toLocaleDateString()}
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity>
-                <MaterialIcons name="bookmark" size={20} color="#666" />
-              </TouchableOpacity>
-            </View>
-            
-            <Text style={styles.postTitle}>{post.title}</Text>
-            <Text style={styles.postContent} numberOfLines={3}>
-              {post.content}
-            </Text>
-            
-            <View style={styles.postActions}>
-              <TouchableOpacity style={styles.actionButton}>
-                <MaterialIcons name="thumb-up" size={16} color="#666" />
-                <Text style={styles.actionText}>Like</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.actionButton}>
-                <MaterialIcons name="comment" size={16} color="#666" />
-                <Text style={styles.actionText}>Comment</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity style={styles.actionButton}>
-                <MaterialIcons name="share" size={16} color="#666" />
-                <Text style={styles.actionText}>Share</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))
-      )}
-    </View>
-  );
-
-
-  
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        {/* Background Image */}
+    <SafeAreaView style={[styles.container, { backgroundColor: darkMode ? '#121212' : '#f5f5f5' }]}>
+      <ScrollView
+        style={[styles.scrollView, { backgroundColor: darkMode ? '#121212' : '#f5f5f5' }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={fetchTrendingPosts}
+            colors={[darkMode ? '#6C5CE7' : '#007AFF']}
+            progressBackgroundColor={darkMode ? '#2d2d2d' : '#fff'}
+          />
+        }
+      >
         <View style={styles.bgImageContainer}>
-          <Image 
-            source={require('./assets/HomeBackground.png')}
-            style={styles.bgImage}
-            resizeMode="cover"
-          />
+          <Image source={require('./assets/HomeBackground.png')} style={styles.bgImage} />
         </View>
 
-        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.menuButton}>
-            <MaterialIcons name="menu" size={24} color="#000" />
+          <TouchableOpacity style={styles.menuButton} onPress={() => setMenuVisible(true)}>
+            <MaterialIcons name="menu" size={24} color={darkMode ? '#010' : '#000'} />
           </TouchableOpacity>
-          
-          <TouchableOpacity>
-            <Image 
-              source={require('./assets/Profile.png')}
-              style={styles.profilePic}
-            />
+          <TouchableOpacity onPress={() => navigation.navigate('UserProfile')}>
+            <Image source={require('./assets/Profile.png')} style={styles.profilePic} />
           </TouchableOpacity>
         </View>
-        <Text style={styles.headerText}>Hi, ABC</Text>
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <MaterialIcons name="search" size={20} color="#666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Try searching topics like 'Tesla'"
-            placeholderTextColor="#666"
+        <Text style={[styles.headerText, { color: darkMode ? '#000' : '#000' }]}>Hi, Chandru</Text>
+
+        <View
+  style={[
+    styles.searchContainer,
+    {
+      backgroundColor: darkMode ? '#2d2d2d' : '#fff',
+      borderColor: darkMode ? '#444' : '#e5e5e5',
+    },
+  ]}
+>
+  <MaterialIcons
+    name="search"
+    size={20}
+    color={darkMode ? '#fff' : '#666'}
+  />
+  <TextInput
+    style={[styles.searchInput, { color: darkMode ? '#fff' : '#000' }]}
+    placeholder="Try searching topics like 'Tesla'"
+    placeholderTextColor={darkMode ? '#888' : '#666'}
+  />
+</View>
+
+{/* Top Communities */}
+<View style={styles.section}>
+  <Text
+    style={[
+      styles.sectionTitle,
+      { color: darkMode ? '#fff' : '#000' },
+    ]}
+  >
+    Top Communities
+  </Text>
+  <ScrollView
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    contentContainerStyle={styles.communitiesContainer}
+  >
+    {communities.map((community) => (
+      <TouchableOpacity
+        onPress={() => navigation.navigate('Community')}
+        key={community.id}
+        style={[
+          styles.communityCard,
+          { backgroundColor: darkMode ? '#2d2d2d' : '#fff' },
+        ]}
+      >
+        <Image source={community.icon} style={styles.communityIcon} />
+        <Text
+          style={[
+            styles.communityName,
+            { color: darkMode ? '#fff' : '#000' },
+          ]}
+        >
+          {community.name}
+        </Text>
+        <Text
+          style={[
+            styles.communityMembers,
+            { color: darkMode ? '#ccc' : '#666' },
+          ]}
+        >
+          <MaterialIcons name="groups" size={12} color={darkMode ? '#ccc' : '#666'} />{' '}
+          {community.members} members
+        </Text>
+      </TouchableOpacity>
+    ))}
+  </ScrollView>
+</View>
+
+{/* Welcome Post */}
+<View style={styles.section}>
+  <Text
+    style={[
+      styles.sectionTitle,
+      { color: darkMode ? '#fff' : '#000' },
+    ]}
+  >
+    Welcome Post
+  </Text>
+  <View
+    style={[
+      styles.postCard,
+      { backgroundColor: darkMode ? '#2d2d2d' : '#fff' },
+    ]}
+  >
+    <View style={styles.postHeader}>
+      <View style={styles.postAuthor}>
+        <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+          <Image
+            source={require('./assets/Admin.png')}
+            style={styles.authorAvatar}
           />
-        </View>
-
-        {/* Top Communities */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Top Communities</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.communitiesContainer}
+        </TouchableOpacity>
+        <View>
+          <Text
+            style={[
+              styles.authorName,
+              { color: darkMode ? '#fff' : '#000' },
+            ]}
           >
-            {communities.map((community) => (
-              <TouchableOpacity key={community.id} style={styles.communityCard}>
-                <Image source={community.icon} style={styles.communityIcon} />
-                <Text style={styles.communityName}>{community.name}</Text>
-                <Text style={styles.communityMembers}>
-                  <MaterialIcons name="groups" size={12} color="#666" /> {community.members} members
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+            Admin
+          </Text>
+          <Text
+            style={[
+              styles.postTime,
+              { color: darkMode ? '#ccc' : '#666' },
+            ]}
+          >
+            25d
+          </Text>
         </View>
+      </View>
+      <TouchableOpacity>
+        <MaterialIcons name="bookmark" size={20} color={darkMode ? '#ccc' : '#666'} />
+      </TouchableOpacity>
+    </View>
+    <Text
+      style={[
+        styles.postTitle,
+        { color: darkMode ? '#fff' : '#000' },
+      ]}
+    >
+      Welcome 👋
+    </Text>
+    <Text
+      style={[
+        styles.postContent,
+        { color: darkMode ? '#ccc' : '#666' },
+      ]}
+    >
+      Welcome to the TechForum community—we're glad to get you as part of
+      us. This is a space to build community with other enthusiastic and
+      knowledgeable...
+    </Text>
+    <View style={styles.postActions}>
+      <TouchableOpacity
+        style={[
+          styles.actionButton,
+          welcomePost.isLiked && styles.actionButtonActive,
+        ]}
+        onPress={() =>
+          setWelcomePost((prev) => ({
+            ...prev,
+            isLiked: !prev.isLiked,
+            likes: prev.isLiked ? prev.likes - 1 : prev.likes + 1,
+          }))
+        }
+      >
+        <MaterialIcons
+          name="thumb-up"
+          size={16}
+          color={welcomePost.isLiked ? '#4da6ff' : darkMode ? '#ccc' : '#666'}
+        />
+        <Text
+          style={[
+            styles.actionText,
+            welcomePost.isLiked && styles.actionTextActive,
+            { color: darkMode ? '#ccc' : '#666' },
+          ]}
+        >
+          {welcomePost.likes}
+        </Text>
+      </TouchableOpacity>
 
-        {/* Welcome Post */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Welcome Post</Text>
-          <View style={styles.postCard}>
-            <View style={styles.postHeader}>
-              <View style={styles.postAuthor}>
-                <Image
-                  source={require('./assets/Admin.png')}
-                  style={styles.authorAvatar}
-                />
-                <View>
-                  <Text style={styles.authorName}>Admin</Text>
-                  <Text style={styles.postTime}>25d</Text>
-                </View>
-              </View>
-              <TouchableOpacity>
-                <MaterialIcons name="bookmark" size={20} color="#666" />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.postTitle}>Welcome 👋</Text>
-            <Text style={styles.postContent}>
-              Welcome to the TechForum community—we're glad to get you as part of us. This is a space to build community with other enthusiastic and knowledgeable...
-            </Text>
-            <View style={styles.postActions}>
-              <TouchableOpacity 
-                style={[styles.actionButton, welcomePost.isLiked && styles.actionButtonActive]}
-                onPress={() => setWelcomePost(prev => ({
-                  ...prev,
-                  isLiked: !prev.isLiked,
-                  likes: prev.isLiked ? prev.likes - 1 : prev.likes + 1
-                }))}
-              >
-                <MaterialIcons 
-                  name="thumb-up" 
-                  size={16} 
-                  color={welcomePost.isLiked ? "#007AFF" : "#666"} 
-                />
-                <Text style={[styles.actionText, welcomePost.isLiked && styles.actionTextActive]}>
-                  {welcomePost.likes}
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={() => setIsCommentsVisible(true)}
-              >
-                <MaterialIcons name="comment" size={16} color="#666" />
-                <Text style={styles.actionText}>{welcomePost.comments}</Text>
-              </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.actionButton}
+        onPress={() => setIsCommentsVisible(true)}
+      >
+        <MaterialIcons name="comment" size={16} color={darkMode ? '#ccc' : '#666'} />
+        <Text
+          style={[
+            styles.actionText,
+            { color: darkMode ? '#ccc' : '#666' },
+          ]}
+        >
+          {welcomePost.comments}
+        </Text>
+      </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[styles.actionButton, welcomePost.isDisliked && styles.actionButtonActive]}
-                onPress={() => setWelcomePost(prev => ({
-                  ...prev,
-                  isDisliked: !prev.isDisliked,
-                  dislikes: prev.isDisliked ? prev.dislikes - 1 : prev.dislikes + 1
-                }))}
-              >
-                <MaterialIcons 
-                  name="thumb-down" 
-                  size={16} 
-                  color={welcomePost.isDisliked ? "#007AFF" : "#666"} 
-                />
-                <Text style={[styles.actionText, welcomePost.isDisliked && styles.actionTextActive]}>
-                  {welcomePost.dislikes}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+      <TouchableOpacity
+        style={[
+          styles.actionButton,
+          welcomePost.isDisliked && styles.actionButtonActive,
+        ]}
+        onPress={() =>
+          setWelcomePost((prev) => ({
+            ...prev,
+            isDisliked: !prev.isDisliked,
+            dislikes: prev.isDisliked
+              ? prev.dislikes - 1
+              : prev.dislikes + 1,
+          }))
+        }
+      >
+        <MaterialIcons
+          name="thumb-down"
+          size={16}
+          color={welcomePost.isDisliked ? '#4da6ff' : darkMode ? '#ccc' : '#666'}
+        />
+        <Text
+          style={[
+            styles.actionText,
+            welcomePost.isDisliked && styles.actionTextActive,
+            { color: darkMode ? '#ccc' : '#666' },
+          ]}
+        >
+          {welcomePost.dislikes}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</View>
 
         {/* Today's Trending */}
         <View style={styles.section}>
@@ -362,63 +410,146 @@ const HomeScreen = () => {
       </ScrollView>
 
       {/* Comments Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isCommentsVisible}
-        onRequestClose={() => setIsCommentsVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Comments</Text>
-              <TouchableOpacity onPress={() => setIsCommentsVisible(false)}>
-                <MaterialIcons name="close" size={24} color="#000" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.commentsList}>
-              {comments.map((comment, index) => (
-                <View key={index} style={styles.commentItem}>
-                  <View style={styles.commentHeader}>
-                    <Image
-                      source={{ uri: 'https://via.placeholder.com/30' }}
-                      style={styles.commentAuthorAvatar}
-                    />
-                    <Text style={styles.commentAuthorName}>User {index + 1}</Text>
-                  </View>
-                  <Text style={styles.commentText}>{comment}</Text>
-                  <Text style={styles.commentTime}>
-                    {new Date().toLocaleDateString()}
-                  </Text>
-                </View>
-              ))}
-            </ScrollView>
-            <View style={styles.commentInputContainer}>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Write a comment..."
-                placeholderTextColor="#666"
-                value={newComment}
-                onChangeText={setNewComment}
-                multiline
+      <OverlayMenu
+        isVisible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        darkMode={darkMode}
+        navigation={navigation}
+      />
+
+<Modal
+  animationType="slide"
+  transparent={true}
+  visible={isCommentsVisible}
+  onRequestClose={() => setIsCommentsVisible(false)}
+>
+  <View
+    style={[
+      styles.modalContainer,
+      { backgroundColor: darkMode ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.5)' },
+    ]}
+  >
+    <View
+      style={[
+        styles.modalContent,
+        { backgroundColor: darkMode ? '#1a1a1a' : '#fff' },
+      ]}
+    >
+      <View style={styles.modalHeader}>
+        <Text
+          style={[
+            styles.modalTitle,
+            { color: darkMode ? '#fff' : '#000' },
+          ]}
+        >
+          Comments
+        </Text>
+        <TouchableOpacity onPress={() => setIsCommentsVisible(false)}>
+          <MaterialIcons name="close" size={24} color={darkMode ? '#fff' : '#000'} />
+        </TouchableOpacity>
+      </View>
+      <ScrollView style={styles.commentsList}>
+        {comments.map((comment, index) => (
+          <View
+            key={index}
+            style={[
+              styles.commentItem,
+              { borderBottomColor: darkMode ? '#333' : '#ccc' },
+            ]}
+          >
+            <View style={styles.commentHeader}>
+              <Image
+                source={{ uri: 'https://via.placeholder.com/30' }}
+                style={styles.commentAuthorAvatar}
               />
-              <TouchableOpacity 
-                style={styles.sendButton}
-                onPress={handleAddComment}
+              <Text
+                style={[
+                  styles.commentAuthorName,
+                  { color: darkMode ? '#fff' : '#000' },
+                ]}
               >
-                <MaterialIcons name="send" size={24} color="#007AFF" />
-              </TouchableOpacity>
+                User {index + 1}
+              </Text>
             </View>
+            <Text
+              style={[
+                styles.commentText,
+                { color: darkMode ? '#ccc' : '#333' },
+              ]}
+            >
+              {comment}
+            </Text>
+            <Text
+              style={[
+                styles.commentTime,
+                { color: darkMode ? '#666' : '#999' },
+              ]}
+            >
+              {new Date().toLocaleDateString()}
+            </Text>
           </View>
-        </View>
-      </Modal>
+        ))}
+      </ScrollView>
+      <View
+        style={[
+          styles.commentInputContainer,
+          { backgroundColor: darkMode ? '#2a2a2a' : '#f7f7f7' },
+        ]}
+      >
+        <TextInput
+          style={[
+            styles.commentInput,
+            { color: darkMode ? '#fff' : '#000' },
+          ]}
+          placeholder="Write a comment..."
+          placeholderTextColor={darkMode ? '#777' : '#666'}
+          value={newComment}
+          onChangeText={setNewComment}
+          multiline
+        />
+        <TouchableOpacity style={styles.sendButton} onPress={handleAddComment}>
+          <MaterialIcons name="send" size={24} color={darkMode ? '#4da6ff' : '#007AFF'} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+</Modal>
+
     </SafeAreaView>
   );
 };
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: width * 0.75,
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  overlayHeader: {
+    marginBottom: 30,
+  },
+  overlayItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  overlayText: {
+    fontSize: 16,
+    marginLeft: 15,
+    fontWeight: '500',
   },
   scrollView: {
     flex: 1,
@@ -554,6 +685,7 @@ const styles = StyleSheet.create({
   },
   communitiesContainer: {
     paddingRight: 20,
+    marginBottom: 10,
   },
   communityCard: {
     width: width * 0.35,

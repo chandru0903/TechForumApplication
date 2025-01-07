@@ -9,28 +9,19 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { useDarkMode } from './Context/DarkMode';
-import { launchImageLibrary } from 'react-native-image-picker'; // For image picking
-import Icon from 'react-native-vector-icons/MaterialIcons'; // For Material Icons
+import { launchImageLibrary } from 'react-native-image-picker';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const WritePostScreen = ({ navigation }) => {
   const [isModalVisible, setModalVisible] = useState(false);
-  const [imageUri, setImageUri] = useState(null); // State to hold image URI
+  const [imageUri, setImageUri] = useState(null);
 
-  const themeStyles = useDarkMode()
-    ? {
-        container: { backgroundColor: '#333' },
-        text: { color: '#fff' },
-        input: { backgroundColor: '#444', borderColor: '#555', color: '#fff' },
-        placeholder: '#aaa',
-        header: { color: '#fff' },
-      }
-    : {
-        container: { backgroundColor: '#f9f9f9' },
-        text: { color: '#000' },
-        input: { backgroundColor: '#fff', borderColor: '#ddd', color: '#000' },
-        placeholder: '#666',
-        header: { color: '#003f8a' },
-      };
+  const { darkMode } = useDarkMode();
+  const container = darkMode ? '#333' : '#f9f9f9';
+  const text = darkMode ? '#fff' : '#000';
+  const inputBackground = darkMode ? '#222' : '#fff';
+  const inputBorder = darkMode ? '#555' : '#ccc';
+  const placeholder = darkMode ? '#888' : '#666';
 
   const openModal = () => {
     setModalVisible(true);
@@ -49,54 +40,60 @@ const WritePostScreen = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior="padding">
+    <KeyboardAvoidingView style={[styles.container, { backgroundColor: container }]} behavior="padding">
       <View style={styles.header}>
-        <Text style={styles.title}>Write Posts</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Icon name="arrow-back" size={24} color={text} />
+        </TouchableOpacity>
+        <Text style={[styles.title, { color: text }]}>Write Posts</Text>
         <TouchableOpacity onPress={openModal}>
-          <Text style={styles.postButton}>POST</Text>
+          <Text style={[styles.postButton, { color: text }]}>POST</Text>
         </TouchableOpacity>
       </View>
 
       <TextInput
-        style={[styles.inputTitle, { color: '#000' }]} // Set text color to black
+        style={[
+          styles.inputTitle,
+          { backgroundColor: inputBackground, borderColor: inputBorder, color: text },
+        ]}
         placeholder="Title.... goes here"
-        placeholderTextColor="#aaa"
+        placeholderTextColor={placeholder}
       />
       <TextInput
-        style={[styles.inputDescription, { color: '#000' }]} // Set text color to black
+        style={[
+          styles.inputDescription,
+          { backgroundColor: inputBackground, borderColor: inputBorder, color: text },
+        ]}
         placeholder="Description.. goes here"
-        placeholderTextColor="#aaa"
+        placeholderTextColor={placeholder}
         multiline
       />
 
       <TouchableOpacity style={styles.photoButton} onPress={pickImage}>
         <Icon name="photo-camera" size={24} color="#007bff" />
-        <Text style={styles.photoText}> Add photo</Text>
+        <Text style={[styles.photoText, { color: text }]}> Add photo</Text>
       </TouchableOpacity>
-      {imageUri && <Text>Image URI: {imageUri}</Text>} {/* Display selected image URI */}
-      
-      <Text style={styles.linkTitle}>Add external link to verify</Text>
-      
+      {imageUri && <Text style={[{ color: text }, styles.imageUriText]}>Image URI: {imageUri}</Text>}
+
+      <Text style={[styles.linkTitle, { color: text }]}>Add external link to verify</Text>
+
       <TextInput
-        style={[styles.inputLink, { color: '#000' }]} // Set text color to black
+        style={[
+          styles.inputLink,
+          { backgroundColor: inputBackground, borderColor: inputBorder, color: text },
+        ]}
         placeholder="External link here"
-        placeholderTextColor="#aaa"
+        placeholderTextColor={placeholder}
       />
 
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isModalVisible}
-        onRequestClose={closeModal}
-      >
+      <Modal animationType="slide" transparent={true} visible={isModalVisible} onRequestClose={closeModal}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <TouchableOpacity style={styles.modalOption} onPress={closeModal}>
-              <Text style={styles.modalText}>Share as Post</Text>
+              <Text style={[styles.modalText, { color: text }]}>Share as Post</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.modalOption} onPress={closeModal}>
-              <Text style={styles.modalText}>Share as Q&A</Text>
+              <Text style={[styles.modalText, { color: text }]}>Share as Q&A</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -108,7 +105,6 @@ const WritePostScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
     padding: 16,
   },
   header: {
@@ -117,32 +113,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  backButton: {
+    marginRight: 8,
+  },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
   },
   postButton: {
     fontSize: 16,
-    color: '#007bff',
   },
   inputTitle: {
     fontSize: 16,
     borderBottomWidth: 1,
-    borderColor: '#ccc',
     marginBottom: 8,
     padding: 8,
-    backgroundColor: '#fff',
     borderRadius: 8,
   },
   inputDescription: {
     fontSize: 16,
-    height: 150, // Increased height for description box
+    height: 150,
     textAlignVertical: 'top',
     borderWidth: 1,
-    borderColor: '#ccc',
     marginBottom: 8,
     padding: 8,
-    backgroundColor: '#fff',
     borderRadius: 8,
   },
   photoButton: {
@@ -151,23 +145,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   photoText: {
-    color: '#000',
     marginLeft: 8,
   },
   linkTitle: {
-    fontSize: 16, // Size similar to "Add photo"
-    color: '#000',
-    marginTop: 16,
-   
-  },
-  linkButton: {
-    marginTop: 8,
-  },
-  linkText: {
-    color: '#000',
     fontSize: 16,
-    marginLeft: 8,
-    
+    marginTop: 16,
   },
   modalOverlay: {
     flex: 1,
@@ -188,21 +170,16 @@ const styles = StyleSheet.create({
   },
   modalText: {
     fontSize: 18,
-    textAlign: '',
-    color: '#000',
-  },
-  link: {
-    marginTop:15,
-    color: '#007bff',
-    flexDirection: 'row',
   },
   inputLink: {
     fontSize: 16,
     marginBottom: 8,
     padding: 8,
     marginTop: 8,
-    backgroundColor: '#fff',
     borderRadius: 8,
+  },
+  imageUriText: {
+    marginTop: 8,
   },
 });
 
