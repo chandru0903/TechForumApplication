@@ -7,6 +7,7 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import axios from 'axios';
 import { useDarkMode } from './Context/DarkMode';
+import { useAuth } from './Context/Authentication';
 
 const { width } = Dimensions.get('window');
 
@@ -234,7 +235,7 @@ const HomeScreen = ({ navigation }) => {
   >
     <View style={styles.postHeader}>
       <View style={styles.postAuthor}>
-        <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+        <TouchableOpacity onPress={() => navigation.navigate('Profile', { userId: user.id }) }>
           <Image
             source={require('./assets/Admin.png')}
             style={styles.authorAvatar}

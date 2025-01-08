@@ -12,7 +12,7 @@ import {
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useDarkMode } from './Context/DarkMode'; // Import the dark mode context
 
-const EditProfileScreen = () => {
+const EditProfileScreen = ({ navigation, route }) => {
   const [name, setName] = useState('Chandru');
   const [username, setUsername] = useState('chandru.tech');
   const [email, setEmail] = useState('chandru@techforum.com');
@@ -21,6 +21,7 @@ const EditProfileScreen = () => {
   const [website, setWebsite] = useState('https://techforum.com');
   const [socialLinks, setSocialLinks] = useState([{ link: '', description: '' }]);
   const { darkMode } = useDarkMode(); // Get dark mode state
+  
 
   const themeStyles = darkMode
     ? {

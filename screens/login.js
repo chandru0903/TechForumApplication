@@ -4,6 +4,7 @@ import { Checkbox } from 'react-native-paper';
 import axios from 'axios';
 import { CommonActions } from '@react-navigation/native';
 import { apiUrl } from './config';
+import { useAuth } from './Context/Authentication';
 
 const Login = ({ navigation }) => {
   const [isChecked, setIsChecked] = useState(false);
@@ -13,6 +14,7 @@ const Login = ({ navigation }) => {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
 
   const validateEmail = (email) => {
     const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
@@ -37,49 +39,12 @@ const Login = ({ navigation }) => {
   };
 
   const handleLogin = async () => {
-    const isEmailValid = validateEmail(email);
-    const isPasswordValid = validatePassword(password);
-  
-    if (isEmailValid && isPasswordValid) {
-      setLoading(true);
-      setEmailError('');
-      setPasswordError('');
-  
-      try {
-        console.log('Attempting login with:', { email, password }); // Log the request data
-        
-        const response = await axios.post(`${apiUrl}/login.php`, {
-          email: email.trim(),
-          password: password.trim()
-        });
-        
-        console.log('Full response:', response); // Log the full response
-        console.log('Response data:', response.data); // Log just the response data
-        
-        if (response.data.success) {
-          navigation.dispatch(
-            CommonActions.reset({
-              index: 0,
-              routes: [{ name: 'HomeScreen' }],
-            })
-          );
-        } else {
-          Alert.alert('Login Failed', response.data.message);
-        }
-      } catch (error) {
-        console.log('Error details:', {
-          message: error.message,
-          response: error.response?.data,
-          status: error.response?.status
-        });
-        
-        Alert.alert(
-          'Login Error',
-          error.response?.data?.message || 'Unable to connect to the server'
-        );
-      } finally {
-        setLoading(false);
-      }
+    const result = await login(email, password);
+    if (result.success) {
+      // Navigate to main app
+      navigation.replace('HomeScreen');
+    } else {
+      Alert.alert('Error', result.message);
     }
   };
 
@@ -90,7 +55,7 @@ const Login = ({ navigation }) => {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.appName}>MyApp</Text>
+        <Text style={styles.appName}>TechForum</Text>
       </View>
       <View style={styles.secondaryContainer}>
         <View style={styles.formContainer}>
@@ -101,10 +66,7 @@ const Login = ({ navigation }) => {
               placeholder="Enter your email"
               placeholderTextColor="#666"
               value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (emailError) validateEmail(text);
-              }}
+              onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -120,10 +82,7 @@ const Login = ({ navigation }) => {
                 placeholderTextColor="#666"
                 secureTextEntry={!passwordVisible}
                 value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  if (passwordError) validatePassword(text);
-                }}
+                onChangeText={setPassword}
               />
               <TouchableOpacity
                 style={styles.visibilityToggle}

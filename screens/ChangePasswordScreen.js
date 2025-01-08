@@ -5,66 +5,89 @@ import { useDarkMode } from './Context/DarkMode'; // Import the dark mode contex
 const ChangePasswordScreen = () => {
   const { darkMode } = useDarkMode(); // Get dark mode state
   const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+const [newPassword, setNewPassword] = useState('');
+const [confirmPassword, setConfirmPassword] = useState('');
+const [userId] = useState('1'); 
 
   const backgroundColor = darkMode ? '#333' : '#f9f9f9';
   const textColor = darkMode ? '#fff' : '#000';
   const headerColor = darkMode ? '#222' : '#003f8a';
 
-  const handleSave = () => {
+  const handlePasswordChange = async () => {
     if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'New passwords do not match.');
+      Alert.alert('Error', 'New passwords do not match');
       return;
     }
-    if (newPassword.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters.');
-      return;
+    
+    try {
+      const result = await api.changePassword(userId, currentPassword, newPassword);
+      if (result.success) {
+        Alert.alert('Success', 'Password changed successfully');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        Alert.alert('Error', 'Current password is incorrect');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to change password');
     }
-    Alert.alert('Success', 'Password changed successfully.');
+  };
+
+  const handleSave = async () => {
+    try {
+      const profileData = {
+        full_name: name,
+        username,
+        bio,
+        website,
+        profile_image: profileImage,
+        social_links: JSON.stringify(socialLinks),
+      };
+      
+      const result = await api.updateProfile(userId, profileData);
+      if (result.success) {
+        Alert.alert('Success', 'Profile updated successfully');
+      } else {
+        Alert.alert('Error', 'Failed to update profile');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'An error occurred while updating profile');
+    }
   };
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
       <View style={[styles.header, { backgroundColor: headerColor }]}>
-        <Text style={[styles.headerText, { color: textColor }]}>Change Password</Text>
+      <Text style={[styles.sectionHeader, themeStyles.text]}>Change Password</Text>
       </View>
-
-      <View style={styles.form}>
-        <Text style={[styles.label, { color: textColor }]}>Current Password</Text>
-        <TextInput
-          style={[styles.input, { color: textColor }]}
-          secureTextEntry
-          value={currentPassword}
-          onChangeText={setCurrentPassword}
-          placeholder="Enter current password"
-          placeholderTextColor={darkMode ? '#ccc' : '#888'}
-        />
-
-        <Text style={[styles.label, { color: textColor }]}>New Password</Text>
-        <TextInput
-          style={[styles.input, { color: textColor }]}
-          secureTextEntry
-          value={newPassword}
-          onChangeText={setNewPassword}
-          placeholder="Enter new password"
-          placeholderTextColor={darkMode ? '#ccc' : '#888'}
-        />
-
-        <Text style={[styles.label, { color: textColor }]}>Confirm Password</Text>
-        <TextInput
-          style={[styles.input, { color: textColor }]}
-          secureTextEntry
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          placeholder="Confirm new password"
-          placeholderTextColor={darkMode ? '#ccc' : '#888'}
-        />
-      </View>
-
-      <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>Save Changes</Text>
-      </TouchableOpacity>
+<TextInput
+  style={[styles.input, themeStyles.input]}
+  value={currentPassword}
+  onChangeText={setCurrentPassword}
+  placeholder="Current Password"
+  placeholderTextColor={themeStyles.placeholder}
+  secureTextEntry
+/>
+<TextInput
+  style={[styles.input, themeStyles.input]}
+  value={newPassword}
+  onChangeText={setNewPassword}
+  placeholder="New Password"
+  placeholderTextColor={themeStyles.placeholder}
+  secureTextEntry
+/>
+<TextInput
+  style={[styles.input, themeStyles.input]}
+  value={confirmPassword}
+  onChangeText={setConfirmPassword}
+  placeholder="Confirm New Password"
+  placeholderTextColor={themeStyles.placeholder}
+  secureTextEntry
+/>
+<TouchableOpacity style={styles.changePasswordButton} onPress={handlePasswordChange}>
+  <Text style={styles.changePasswordButtonText}>Change Password</Text>
+</TouchableOpacity>
     </View>
   );
 };

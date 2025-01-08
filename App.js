@@ -5,6 +5,7 @@ import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/
 import { DarkModeProvider } from './screens/Context/DarkMode';
 import { userService } from './screens/services/UserService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AuthProvider } from './screens/Context/Authentication';
 
 import HomeScreen from './screens/HomeScreen';
 import SettingsScreen from './screens/SettingsScreen';
@@ -31,6 +32,7 @@ const Stack = createStackNavigator();
 
 export default function App() {
   return (
+    <AuthProvider>
     <DarkModeProvider>
     <NavigationContainer>
       <Stack.Navigator 
@@ -76,6 +78,7 @@ export default function App() {
       </Stack.Navigator>
     </NavigationContainer>
     </DarkModeProvider>
+    </AuthProvider>
   );
 }
 
