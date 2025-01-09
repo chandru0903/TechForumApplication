@@ -28,6 +28,7 @@ import CommunitiesScreen from './screens/CommunitiesScreen';
 import RegisterEmailVerify from './screens/RegisterEmailVerify';
 
 
+
 const Stack = createStackNavigator();
 
 export default function App() {
@@ -75,6 +76,7 @@ export default function App() {
         <Stack.Screen name="Saved" component={SavedScreen}/>
         <Stack.Screen name="Communities" component={CommunitiesScreen}/>
         <Stack.Screen name="RegisterEmailVerify" component={RegisterEmailVerify}/>
+        
       </Stack.Navigator>
     </NavigationContainer>
     </DarkModeProvider>

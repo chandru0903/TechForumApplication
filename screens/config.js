@@ -1,4 +1,3 @@
-// config.js
 export const apiUrl = 'http://192.168.151.27/TechForum/backend';
 export const API_BASE_URL = 'http://192.168.151.27/TechForum/backend';
 
@@ -36,4 +35,4 @@ export const api = {
         });
         return response.json();
     },
-};
+};      
