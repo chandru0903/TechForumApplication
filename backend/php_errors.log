@@ -23,3 +23,33 @@ Stack trace:
 #0 C:\xampp\htdocs\TechForum\backend\register.php(66): mysqli_stmt->execute()
 #1 {main}
   thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 66
+[09-Jan-2025 10:36:31 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'id' in 'field list' in C:\xampp\htdocs\TechForum\backend\register.php:41
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(41): mysqli->prepare('SELECT id FROM ...')
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 41
+[09-Jan-2025 10:36:55 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'id' in 'field list' in C:\xampp\htdocs\TechForum\backend\register.php:41
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(41): mysqli->prepare('SELECT id FROM ...')
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 41
+[09-Jan-2025 10:37:17 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'id' in 'field list' in C:\xampp\htdocs\TechForum\backend\register.php:41
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(41): mysqli->prepare('SELECT id FROM ...')
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 41
+[09-Jan-2025 10:38:23 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'id' in 'field list' in C:\xampp\htdocs\TechForum\backend\register.php:41
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(41): mysqli->prepare('SELECT id FROM ...')
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 41
+[09-Jan-2025 10:38:28 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'id' in 'field list' in C:\xampp\htdocs\TechForum\backend\register.php:41
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(41): mysqli->prepare('SELECT id FROM ...')
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 41
+[09-Jan-2025 11:02:08 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'user_id' in 'field list' in C:\xampp\htdocs\TechForum\backend\register.php:41
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(41): mysqli->prepare('SELECT user_id ...')
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 41
