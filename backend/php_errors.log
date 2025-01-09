@@ -1,0 +1,25 @@
+[08-Jan-2025 08:13:25 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'fullname' in 'field list' in C:\xampp\htdocs\TechForum\backend\register.php:58
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(58): mysqli->prepare('INSERT INTO use...')
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 58
+[08-Jan-2025 08:16:46 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'fullname' in 'field list' in C:\xampp\htdocs\TechForum\backend\register.php:58
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(58): mysqli->prepare('INSERT INTO use...')
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 58
+[08-Jan-2025 08:17:57 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Duplicate entry '' for key 'username' in C:\xampp\htdocs\TechForum\backend\register.php:66
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(66): mysqli_stmt->execute()
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 66
+[08-Jan-2025 08:18:42 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Duplicate entry '' for key 'username' in C:\xampp\htdocs\TechForum\backend\register.php:66
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(66): mysqli_stmt->execute()
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 66
+[08-Jan-2025 08:23:36 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Duplicate entry '' for key 'username' in C:\xampp\htdocs\TechForum\backend\register.php:66
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(66): mysqli_stmt->execute()
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 66
