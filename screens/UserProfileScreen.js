@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,16 @@ import {
   Dimensions,
   RefreshControl,
   ActivityIndicator,
+  Modal,
+  TextInput,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { format } from 'timeago.js';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDarkMode } from './Context/DarkMode';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import PostCard from './components/PostCard';
+
 
 const UserProfileScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -21,7 +27,9 @@ const UserProfileScreen = ({ navigation }) => {
   const [posts, setPosts] = useState([]);
   const [questions, setQuestions] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
-  const windowWidth = Dimensions.get('window').width;
+  const [profileData, setProfileData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState(null);
 
   const { darkMode } = useDarkMode();
   const backgroundColor = darkMode ? '#333' : '#f9f9f9';
@@ -30,13 +38,142 @@ const UserProfileScreen = ({ navigation }) => {
   const tabInactiveColor = darkMode ? '#888' : '#666';
   const dividerColor = darkMode ? '#555' : '#E5E5E5';
 
+  const fetchProfileData = async () => {
+    try {
+      setLoading(true);
+      const userId = await AsyncStorage.getItem('userId');
+      setUserId(userId);
+      
+      if (!userId) {
+        return;
+      }
+      
+      const response = await fetch('http://192.168.151.27/TechForum/backend/profile.php?id=' + userId);
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        setProfileData(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBookmark = async (postId) => {
+    try {
+      if (!userId) return;
+      
+      const response = await fetch('http://192.168.151.27/TechForum/backend/post_type.php?action=bookmark', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: postId,
+          user_id: userId
+        }),
+      });
+  
+      const data = await response.json();
+      if (data.success) {
+        fetchUserPosts();
+      }
+    } catch (error) {
+      console.error('Error handling bookmark:', error);
+    }
+  };
+
+  const handleLike = async (postId) => {
+    try {
+      if (!userId) return;
+      
+      const response = await fetch('http://192.168.151.27/TechForum/backend/post_type.php?action=react', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: postId,
+          user_id: userId,
+          reaction_type: 'like'
+        }),
+      });
+  
+      const data = await response.json();
+      if (data.success) {
+        fetchUserPosts();
+      }
+    } catch (error) {
+      console.error('Error handling like:', error);
+    }
+  };
+  
+  const handleDislike = async (postId) => {
+    try {
+      if (!userId) return;
+      
+      const response = await fetch('http://192.168.151.27/TechForum/backend/post_type.php?action=react', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: postId,
+          user_id: userId,
+          reaction_type: 'dislike'
+        }),
+      });
+  
+      const data = await response.json();
+      if (data.success) {
+        fetchUserPosts();
+      }
+    } catch (error) {
+      console.error('Error handling dislike:', error);
+    }
+  };
+
+  const fetchUserPosts = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) return;
+  
+      const response = await fetch(
+        `http://192.168.151.27/TechForum/backend/posts_view.php?user_id=${userId}&post_type=${activeTab === 'posts' ? 'post' : 'qa'}`
+      );
+      const data = await response.json();
+      
+      if (data.success) {
+        if (activeTab === 'posts') {
+          setPosts(data.data);
+        } else {
+          setQuestions(data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user posts:', error);
+    }
+  };
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    // Simulate data fetching
-    setTimeout(() => {
-      // Here you would typically fetch new data
+    Promise.all([
+      fetchProfileData(),
+      fetchUserPosts()
+    ]).finally(() => {
       setRefreshing(false);
-    }, 2000);
+    });
+  }, [activeTab]);
+
+  useEffect(() => {
+    fetchUserPosts();
+  }, [activeTab]);
+
+  useEffect(() => {
+    fetchProfileData();
+    fetchUserPosts();
   }, []);
 
   const renderEmptyState = (type) => (
@@ -54,23 +191,6 @@ const UserProfileScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor, paddingTop: insets.top }]}>
-      {/* Background Image */}
-      <Image
-        source={require('./assets/HomeBackground.png')}
-        style={styles.backgroundImage}
-      />
-
-      {/* Header */}
-      <View style={[styles.header]}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color='0000' />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.menuButton}>
-          <MaterialCommunityIcons name="menu" size={24} color='0000' />
-        </TouchableOpacity>
-      </View>
-
-      {/* Main Content */}
       <ScrollView
         style={styles.mainScroll}
         showsVerticalScrollIndicator={false}
@@ -84,45 +204,45 @@ const UserProfileScreen = ({ navigation }) => {
           />
         }
       >
-        {/* Profile Header */}
+        <Image
+          source={require('./assets/HomeBackground.png')}
+          style={styles.backgroundImage}
+        />
+
+        <View style={[styles.header]}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <MaterialCommunityIcons name="arrow-left" size={24} color='0000' />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.menuButton}>
+            <MaterialCommunityIcons name="menu" size={24} color='0000' />
+          </TouchableOpacity>
+        </View>
+
+        {/* Profile Section */}
         <View style={styles.profileContainer}>
+          {/* Profile Header */}
           <View style={styles.profileHeader}>
             <Image
-              source={require('./assets/Profile.png')}
+              source={profileData?.profile_image ? { uri: profileData.profile_image } : require('./assets/Profile.png')}
               style={styles.profileImage}
             />
             <View style={styles.nameContainer}>
               <Text style={[styles.displayName, { color: textColor }]}>
-                Chandru <Text style={styles.badge}>WARLORD</Text>
+                {profileData?.full_name || profileData?.username || 'Loading...'} <Text style={styles.badge}>WARLORD</Text>
               </Text>
               <Text style={[styles.username, { color: darkMode ? '#aaa' : '#666' }]}>
-                @cant.be.better
+                @{profileData?.username || 'loading...'}
               </Text>
             </View>
           </View>
 
           <Text style={[styles.bio, { color: darkMode ? '#ccc' : '#444' }]}>
-            Web | Graphics | UI/UX Designer.{'\n'}Tweets about tech, startups, and innovation.
+            {profileData?.bio || 'No bio available'}
           </Text>
 
           {/* Stats Row */}
           <View style={[styles.statsRow, { borderColor: dividerColor }]}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: textColor }]}>12k</Text>
-              <Text style={[styles.statLabel, { color: tabInactiveColor }]}>followers</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: textColor }]}>1.2k</Text>
-              <Text style={[styles.statLabel, { color: tabInactiveColor }]}>posts</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: textColor }]}>3k</Text>
-              <Text style={[styles.statLabel, { color: tabInactiveColor }]}>forums</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: textColor }]}>200</Text>
-              <Text style={[styles.statLabel, { color: tabInactiveColor }]}>following</Text>
-            </View>
+            {/* Stats items... */}
           </View>
         </View>
 
@@ -158,16 +278,38 @@ const UserProfileScreen = ({ navigation }) => {
 
         {/* Content */}
         <View style={styles.content}>
-          {refreshing ? (
+          {loading ? (
             <ActivityIndicator color="#6C5CE7" style={styles.loadingIndicator} />
           ) : activeTab === 'posts' ? (
             posts.length > 0 ? (
-              posts.map((post) => renderPost(post))
+              posts.map(post => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  darkMode={darkMode}
+                  userId={userId}
+                  onLike={handleLike}
+                  onDislike={handleDislike}
+                  onBookmark={handleBookmark}
+                  onRefresh={fetchUserPosts}
+                />
+              ))
             ) : (
               renderEmptyState('posts')
             )
           ) : questions.length > 0 ? (
-            questions.map((question) => renderPost(question))
+            questions.map(question => (
+              <PostCard
+                key={question.id}
+                post={question}
+                darkMode={darkMode}
+                userId={userId}
+                onLike={handleLike}
+                onDislike={handleDislike}
+                onBookmark={handleBookmark}
+                onRefresh={fetchUserPosts}
+              />
+            ))
           ) : (
             renderEmptyState('qa')
           )}
@@ -175,13 +317,15 @@ const UserProfileScreen = ({ navigation }) => {
       </ScrollView>
 
       {/* Write Button */}
-      <TouchableOpacity style={[styles.writeButton, { backgroundColor: darkMode ? '#444' : '#2D3436' }]} onPress={() => navigation.navigate('WritePost')}>
+      <TouchableOpacity 
+        style={[styles.writeButton, { backgroundColor: darkMode ? '#444' : '#2D3436' }]} 
+        onPress={() => navigation.navigate('WritePost')}
+      >
         <Text style={[styles.writeButtonText, { color: textColor }]}>Write</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -337,6 +481,126 @@ const styles = StyleSheet.create({
   },
   loadingIndicator: {
     padding: 20,
+  },
+  postContainer: {
+    padding: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  postHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  postAuthor: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  authorAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  authorName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  postTime: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  postTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  postContent: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  postImage: {
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  postActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionText: {
+    fontSize: 14,
+    marginLeft: 4,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '100%',
+    height: '100%',
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    paddingTop:20,
+  },
+  modalDescription: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginTop: 10,
+  },
+  modalImage: {
+    width: '100%',
+    height: 300,
+    borderRadius: 8,
+  },
+  imageViewerContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullImage: {
+    width: '100%',
+    height: '80%',
+  },
+  closeButton: {
+    position: 'absolute',
+    
+    right: 10,
+    zIndex: 1,
+    padding: 0,
+  },
+  readMoreText: {
+    marginTop: 5,
+    fontWeight: '500',
+  },
+  postContent: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
   },
 });
 

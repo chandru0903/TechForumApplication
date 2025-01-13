@@ -92,19 +92,20 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            storeFile file('C:/Users/chand/TechForum/android/my-new-key.jks') // Corrected path
+            storePassword 'chandru0110@'
+            keyAlias 'chandru'
+            keyPassword 'chandru0110@'
+        }
     }
     buildTypes {
-        debug {
-            signingConfig signingConfigs.debug
-        }
-        release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
-            minifyEnabled enableProguardInReleaseBuilds
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-        }
+    release {
+        signingConfig signingConfigs.release
+        minifyEnabled enableProguardInReleaseBuilds
+        proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
     }
+}
 }
 
 dependencies {
@@ -123,3 +124,14 @@ project.ext.vectoricons = [
 ]
 
 apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
+
+tasks.whenTaskAdded { task ->
+    if (task.name == "generateDebugLintReportModel") {
+        task.dependsOn ":app:copyReactNativeVectorIconFonts"
+    }
+}
+tasks.whenTaskAdded { task ->
+    if (task.name == "lintAnalyzeDebug") {
+        task.dependsOn ":app:copyReactNativeVectorIconFonts"
+    }
+}

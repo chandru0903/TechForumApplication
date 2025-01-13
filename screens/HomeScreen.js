@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect,useCallback } from 'react';
 import {
   View, Text, TextInput, ScrollView, Image, StyleSheet, 
   TouchableOpacity, SafeAreaView, Dimensions, Modal,
@@ -8,6 +8,8 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import axios from 'axios';
 import { useDarkMode } from './Context/DarkMode';
 import { useAuth } from './Context/Authentication';
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -20,14 +22,14 @@ const api = axios.create({
 const OverlayMenu = ({ isVisible, onClose, darkMode, navigation }) => {
   const slideAnimation = React.useRef(new Animated.Value(-width)).current;
   const menuItems = [
-    { icon: 'home', label: 'Home', route: 'HomeScreen' },
+    { icon: 'question-answer', label: 'Q&A', route: 'Forum' },
     { icon: 'person', label: 'Profile', route: 'UserProfile' },
     { icon: 'group', label: 'Community', route: 'Communities' },
     { icon: 'settings', label: 'Settings', route: 'Settings' },
     { icon: 'notifications', label: 'Notifications', route: 'Notifications' },
-    { icon: 'bookmark', label: 'Saved', route: 'Saved' }
+    { icon: 'bookmark', label: 'Saved', route: 'Saved' },
+  
   ];
-
   useEffect(() => {
     Animated.timing(slideAnimation, {
       toValue: isVisible ? 0 : -width,
@@ -52,7 +54,11 @@ const OverlayMenu = ({ isVisible, onClose, darkMode, navigation }) => {
           key={index}
           style={[styles.overlayItem, { backgroundColor: darkMode ? '#2d2d2d' : '#f5f5f5' }]}
           onPress={() => {
-            navigation.navigate(item.route);
+            if (item.onPress) {
+              item.onPress();
+            } else {
+              navigation.navigate(item.route);
+            }
             onClose();
           }}
         >
@@ -69,21 +75,84 @@ const OverlayMenu = ({ isVisible, onClose, darkMode, navigation }) => {
 const HomeScreen = ({ navigation }) => {
   const { darkMode } = useDarkMode();
   const [menuVisible, setMenuVisible] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  
   const [trendingNews, setTrendingNews] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [isCommentsVisible, setIsCommentsVisible] = useState(false);
+  const [profileData, setProfileData] = useState(null);
+  const [searchInput, setSearchInput] = useState('');
+   const [refreshing, setRefreshing] = useState(false);
+ 
+
   
-  const [welcomePost, setWelcomePost] = useState({
-    likes: 1500,
-    comments: 889,
-    dislikes: 48,
-    isLiked: false,
-    isDisliked: false
-  });
+  const handleSearchPress = (text) => {
+    if (text === '@') {
+      navigation.navigate('Search', { initialChar: '@' });
+    }
+  };
+
+  const fetchProfileData = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) {
+        return;
+      }
+      
+      const response = await fetch('http://192.168.151.27/TechForum/backend/profile.php?id=' + userId);
+      
+
+      const data = await response.json();
+      
+      if (data.success && data.data) {  // Updated to match PHP response structure
+        setProfileData(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+    useEffect(() => {
+        fetchProfileData();
+      }, []);
+  
+      const welcomePost = {
+        id: 'welcome',
+        user_id: 'admin',
+        username: 'Admin',
+        profile_image: require('./assets/Admin.png'),
+        title: 'Welcome 👋',
+        description: "Welcome to the TechForum community—we're glad to get you as part of us. This is a space to build community with other enthusiastic and knowledgeable...",
+        created_at: '25d',
+        likes_count: 0,
+        dislikes_count: 0,
+        comments_count: 0,
+        isAdmin: true
+      };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchProfileData();
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 2000);
+  }, []);
+  useFocusEffect(
+      useCallback(() => {
+        fetchProfileData(); // Call the API when the screen is focused
+      }, [])
+    );
+  
+    // Initial fetch when the screen loads for the first time
+    useEffect(() => {
+      fetchProfileData();
+    }, []);
+
+  
 
   const [communities] = useState([
     { id: 1, name: 'C++', members: '7,800', icon: require('./assets/CPP.png') },
@@ -121,15 +190,18 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
+  
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: darkMode ? '#121212' : '#f5f5f5' }]}>
       <ScrollView
         style={[styles.scrollView, { backgroundColor: darkMode ? '#121212' : '#f5f5f5' }]}
         refreshControl={
           <RefreshControl
-            refreshing={isLoading}
-            onRefresh={fetchTrendingPosts}
-            colors={[darkMode ? '#6C5CE7' : '#007AFF']}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#6C5CE7"
+            colors={['#6C5CE7']}
             progressBackgroundColor={darkMode ? '#2d2d2d' : '#fff'}
           />
         }
@@ -143,32 +215,51 @@ const HomeScreen = ({ navigation }) => {
             <MaterialIcons name="menu" size={24} color={darkMode ? '#010' : '#000'} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('UserProfile')}>
-            <Image source={require('./assets/Profile.png')} style={styles.profilePic} />
+            <Image
+                          source={profileData?.profile_image ? { uri: profileData.profile_image } : require('./assets/Profile.png')}
+                          style={styles.profilePic}
+                        />
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.headerText, { color: darkMode ? '#000' : '#000' }]}>Hi, Chandru</Text>
+        <Text style={[styles.headerText, { color: darkMode ? '#000' : '#000' }]}><Text style={[styles.headerText, { color: darkMode ? '#000' : '#000' }]}>Hi, </Text>
+                        {profileData?.full_name || profileData?.username || 'Loading...'} 
+                      </Text>
 
-        <View
-  style={[
-    styles.searchContainer,
-    {
-      backgroundColor: darkMode ? '#2d2d2d' : '#fff',
-      borderColor: darkMode ? '#444' : '#e5e5e5',
-    },
-  ]}
->
-  <MaterialIcons
-    name="search"
-    size={20}
-    color={darkMode ? '#fff' : '#666'}
-  />
-  <TextInput
-    style={[styles.searchInput, { color: darkMode ? '#fff' : '#000' }]}
-    placeholder="Try searching topics like 'Tesla'"
-    placeholderTextColor={darkMode ? '#888' : '#666'}
-  />
-</View>
+                      <TouchableOpacity
+        style={[
+          styles.searchContainer,
+          {
+            backgroundColor: darkMode ? '#2d2d2d' : '#fff',
+            borderColor: darkMode ? '#444' : '#e5e5e5',
+          },
+        ]}
+        onPress={() => {
+          // Allow normal search navigation if no @ is pressed
+          navigation.navigate('Search', { initialChar: '' });
+        }}
+      >
+        <MaterialIcons
+          name="search"
+          size={20}
+          color={darkMode ? '#fff' : '#666'}
+        />
+        <TextInput
+          style={[
+            styles.searchInput,
+            {
+              color: darkMode ? '#888' : '#666',
+            },
+          ]}
+          placeholder="Search users..."
+          placeholderTextColor={darkMode ? '#888' : '#666'}
+          onChangeText={handleSearchPress}
+          value={searchInput}
+        />
+      </TouchableOpacity>
+
+
+
 
 {/* Top Communities */}
 <View style={styles.section}>
@@ -639,6 +730,11 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     height: '80%',
     padding: 20,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 16,
   },
   modalHeader: {
     flexDirection: 'row',

@@ -7,19 +7,24 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [userId, setUserId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-
+  const [authToken, setAuthToken] = useState(null);
   useEffect(() => {
-    loadStoredUserId();
+    loadStoredAuth();
   }, []);
-
-  const loadStoredUserId = async () => {
+ 
+  const loadStoredAuth = async () => {
     try {
-      const storedUserId = await AsyncStorage.getItem('id');
-      if (storedUserId) {
+      const [storedUserId, storedToken] = await Promise.all([
+        AsyncStorage.getItem('userId'),
+        AsyncStorage.getItem('authToken')
+      ]);
+      
+      if (storedUserId && storedToken) {
         setUserId(storedUserId);
+        setAuthToken(storedToken);
       }
     } catch (error) {
-      console.error('Failed to load stored user ID:', error);
+      console.error('Failed to load stored auth:', error);
     } finally {
       setIsLoading(false);
     }
@@ -27,13 +32,6 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      // First, log the request being sent
-      console.log('Sending login request:', {
-        url: `${apiUrl}/login.php`,
-        email,
-        // Don't log password for security
-      });
-
       const response = await fetch(`${apiUrl}/login.php`, {
         method: 'POST',
         headers: {
@@ -43,46 +41,37 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ email, password }),
       });
 
-      // Log the raw response for debugging
-      const rawResponse = await response.text();
-      console.log('Raw server response:', rawResponse);
-
-      // Try to parse the response as JSON
-      let data;
-      try {
-        data = JSON.parse(rawResponse);
-      } catch (parseError) {
-        console.error('JSON Parse Error:', parseError);
-        console.error('Raw response that caused error:', rawResponse);
-        return {
-          success: false,
-          message: 'Server returned invalid JSON response. Please check server logs.',
-        };
-      }
+      const data = await response.json();
 
       if (data.success && data.userId) {
-        await AsyncStorage.setItem('id', data.userId.toString());
+        const token = data.token || `temp-token-${Date.now()}`;
+        
+        await Promise.all([
+          AsyncStorage.setItem('userId', data.userId.toString()),
+          AsyncStorage.setItem('authToken', token)
+        ]);
+        
         setUserId(data.userId.toString());
-        return { success: true };
+        setAuthToken(token);
+        
+        return { success: true, userId: data.userId };
       }
 
-      return { 
-        success: false, 
-        message: data.message || 'Login failed'
-      };
+      return { success: false, message: data.message || 'Login failed' };
     } catch (error) {
       console.error('Login error:', error);
-      return {
-        success: false,
-        message: `Connection error: ${error.message}`,
-      };
+      return { success: false, message: error.message };
     }
   };
 
   const logout = async () => {
     try {
-      await AsyncStorage.removeItem('userId');
+      await Promise.all([
+        AsyncStorage.removeItem('userId'),
+        AsyncStorage.removeItem('authToken')
+      ]);
       setUserId(null);
+      setAuthToken(null);
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -127,7 +116,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     register,
-    loadStoredUserId,
+    loadStoredAuth,
     setUserId,
     setIsLoading,
   };

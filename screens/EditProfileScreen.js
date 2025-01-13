@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,38 +9,48 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { launchImageLibrary } from 'react-native-image-picker';
-import { useDarkMode } from './Context/DarkMode'; // Import the dark mode context
+import { useDarkMode } from './Context/DarkMode';
 
-const EditProfileScreen = ({ navigation, route }) => {
-  const [name, setName] = useState('Chandru');
-  const [username, setUsername] = useState('chandru.tech');
-  const [email, setEmail] = useState('chandru@techforum.com');
-  const [bio, setBio] = useState('Tech enthusiast and lifelong learner.');
+const EditProfileScreen = ({ navigation }) => {
+  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [bio, setBio] = useState('');
   const [profileImage, setProfileImage] = useState(null);
-  const [website, setWebsite] = useState('https://techforum.com');
-  const [socialLinks, setSocialLinks] = useState([{ link: '', description: '' }]);
-  const { darkMode } = useDarkMode(); // Get dark mode state
-  
+  const [website, setWebsite] = useState('');
+  const { darkMode } = useDarkMode();
 
-  const themeStyles = darkMode
-    ? {
-        container: { backgroundColor: '#333' },
-        text: { color: '#fff' },
-        input: { backgroundColor: '#444', borderColor: '#555', color: '#fff' },
-        placeholder: '#aaa',
-        header: { color: '#fff' },
+  useEffect(() => {
+    fetchProfileData();
+  }, []);
+
+  const fetchProfileData = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      console.log("User ID: ", userId); 
+      const response = await fetch(`http://192.168.151.27/TechForum/backend/get_profile.php?id=${userId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        const profile = data.profile;
+        setName(profile.full_name);
+        setUsername(profile.username);
+        setEmail(profile.email);
+        setBio(profile.bio);
+        setWebsite(profile.website);
+        setProfileImage(profile.profile_image);
       }
-    : {
-        container: { backgroundColor: '#f9f9f9' },
-        text: { color: '#000' },
-        input: { backgroundColor: '#fff', borderColor: '#ddd', color: '#000' },
-        placeholder: '#666',
-        header: { color: '#003f8a' },
-      };
-
-  const handleSave = () => {
-    Alert.alert('Profile Updated', 'Your changes have been saved successfully!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to fetch profile data');
+    }
   };
 
   const pickImage = () => {
@@ -52,13 +62,68 @@ const EditProfileScreen = ({ navigation, route }) => {
     });
   };
 
-  const addSocialLink = () => setSocialLinks([...socialLinks, { link: '', description: '' }]);
+  const handleSave = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      const formData = new FormData();
+  
+      formData.append('user_id', userId);
+      formData.append('name', name);
+      formData.append('username', username);
+      formData.append('email', email);
+      formData.append('bio', bio);
+      formData.append('website', website);
+  
+      // Handle profile image upload with support for both JPEG and PNG formats
+      if (profileImage && !profileImage.startsWith('http')) {
+        const fileExtension = profileImage.split('.').pop().toLowerCase(); // Get file extension
+        const fileType = fileExtension === 'png' ? 'image/png' : 'image/jpeg'; // Determine MIME type
+  
+        formData.append('profile_pictures', {
+          uri: profileImage,
+          type: fileType,
+          name: `profile.${fileExtension}`, // Use the correct extension
+        });
+      }
+  
+      const response = await fetch('http://192.168.151.27/TechForum/backend/update_profile.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        body: formData,
+      });
+       // Log the server response for debugging
+      
+  
+      const data = await response.json();
+      if (data.status === 'success') {
+        Alert.alert('Success', 'Profile updated successfully');
+       
 
-  const updateSocialLink = (index, field, value) => {
-    const updatedLinks = socialLinks.map((item, i) =>
-      i === index ? { ...item, [field]: value } : item
-    );
-    setSocialLinks(updatedLinks);
+      } else {
+        Alert.alert('Error', data.message || 'Failed to update profile');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update profile');
+    }
+    navigation.goBack();
+  };
+ 
+  
+
+  const themeStyles = darkMode ? {
+    container: { backgroundColor: '#333' },
+    text: { color: '#fff' },
+    input: { backgroundColor: '#444', borderColor: '#555', color: '#fff' },
+    placeholder: '#aaa',
+    header: { color: '#fff' },
+  } : {
+    container: { backgroundColor: '#f9f9f9' },
+    text: { color: '#000' },
+    input: { backgroundColor: '#fff', borderColor: '#ddd', color: '#000' },
+    placeholder: '#666',
+    header: { color: '#003f8a' },
   };
 
   return (
@@ -127,33 +192,6 @@ const EditProfileScreen = ({ navigation, route }) => {
           keyboardType="url"
         />
 
-        {/** Social Links */}
-        <Text style={[styles.label, themeStyles.text]}>Social Links</Text>
-        {socialLinks.map((socialLink, index) => (
-          <View key={index} style={styles.socialLinkSection}>
-            <Text style={[styles.label, { color: '#757575' }]}>Link</Text>
-            <TextInput
-              style={[styles.input, themeStyles.input]}
-              value={socialLink.link}
-              onChangeText={(text) => updateSocialLink(index, 'link', text)}
-              placeholder="Enter link"
-              placeholderTextColor={themeStyles.placeholder}
-            />
-            <Text style={[styles.label, { color: '#757575' }]}>Description</Text>
-            <TextInput
-              style={[styles.input, styles.descriptionInput, themeStyles.input]}
-              value={socialLink.description}
-              onChangeText={(text) => updateSocialLink(index, 'description', text)}
-              placeholder="Enter description"
-              placeholderTextColor={themeStyles.placeholder}
-              multiline
-            />
-          </View>
-        ))}
-
-        <TouchableOpacity style={styles.addLinkButton} onPress={addSocialLink}>
-          <Text style={[styles.addLinkButtonText, themeStyles.text]}>+ Add another link</Text>
-        </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
@@ -162,7 +200,6 @@ const EditProfileScreen = ({ navigation, route }) => {
     </ScrollView>
   );
 };
-
 const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 20 },
   header: { alignItems: 'center', marginBottom: 20 },
@@ -174,10 +211,6 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, marginBottom: 5, fontWeight: '600' },
   input: { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 16, marginBottom: 15 },
   bioInput: { height: 80, textAlignVertical: 'top' },
-  socialLinkSection: { marginBottom: 20 },
-  descriptionInput: { height: 60, textAlignVertical: 'top' },
-  addLinkButton: { alignItems: 'center', paddingVertical: 10, marginTop: 10, borderRadius: 5 },
-  addLinkButtonText: { fontSize: 16, fontWeight: 'bold' },
   saveButton: { backgroundColor: '#003f8a', paddingVertical: 15, borderRadius: 8, alignItems: 'center' },
   saveButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

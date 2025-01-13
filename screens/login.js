@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Checkbox } from 'react-native-paper';
-import axios from 'axios';
-import { CommonActions } from '@react-navigation/native';
-import { apiUrl } from './config';
 import { useAuth } from './Context/Authentication';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Login = ({ navigation }) => {
   const [isChecked, setIsChecked] = useState(false);
@@ -38,18 +36,94 @@ const Login = ({ navigation }) => {
     return true;
   };
 
+  // First, modify the handleLogin function
   const handleLogin = async () => {
-    const result = await login(email, password);
-    if (result.success) {
-      // Navigate to main app
-      navigation.replace('HomeScreen');
-    } else {
-      Alert.alert('Error', result.message);
+    if (!validateEmail(email) || !validatePassword(password)) {
+      return;
+    }
+  
+    setLoading(true);
+    try {
+      // First send OTP
+      const formData = new FormData();
+      formData.append('email', email.trim());
+  
+      const response = await fetch('http://192.168.151.27/TechForum/backend/send_otp.php', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+        },
+        body: formData
+      });
+      
+      const result = await response.json();
+  
+      if (result.status === 'success') {
+        // Store credentials temporarily
+        await AsyncStorage.setItem('tempEmail', email.trim());
+        await AsyncStorage.setItem('tempPassword', password);
+        
+        // Navigate to verification screen
+        navigation.navigate('EmailVerification', { 
+          email: email.trim(),
+          password: password,
+          isLogin: true
+        });
+      } else {
+        Alert.alert('Error', result.message || 'Failed to send verification code.');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      Alert.alert('Error', 'Failed to login. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleCheckboxPress = (newValue) => {
-    setIsChecked(newValue);
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert('Error', 'Please enter your email first');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('email', email.trim());
+
+      const response = await fetch('http://192.168.151.27/TechForum/backend/send_otp.php', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+        },
+        body: formData
+      });
+      
+      const responseText = await response.text();
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Parse error:', responseText);
+        throw new Error('Invalid server response');
+      }
+
+      if (result.status === 'success') {
+        navigation.navigate('EmailVerification', { email: email.trim() });
+      } else {
+        Alert.alert('Error', result.message || 'Failed to send verification code.');
+      }
+    } catch (error) {
+      console.error('Send OTP error:', error);
+      Alert.alert('Error', 'Failed to send verification code. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -66,9 +140,13 @@ const Login = ({ navigation }) => {
               placeholder="Enter your email"
               placeholderTextColor="#666"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                setEmailError('');
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!loading}
             />
             {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
           </View>
@@ -82,11 +160,16 @@ const Login = ({ navigation }) => {
                 placeholderTextColor="#666"
                 secureTextEntry={!passwordVisible}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  setPasswordError('');
+                }}
+                editable={!loading}
               />
               <TouchableOpacity
                 style={styles.visibilityToggle}
                 onPress={() => setPasswordVisible(!passwordVisible)}
+                disabled={loading}
               >
                 <Text>{passwordVisible ? '🙉' : '🙈'}</Text>
               </TouchableOpacity>
@@ -94,7 +177,8 @@ const Login = ({ navigation }) => {
             {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
             <TouchableOpacity
               style={styles.forgotPasswordContainer}
-              onPress={() => navigation.navigate('ForgotPassword')}
+              onPress={handleForgotPassword}
+              disabled={loading}
             >
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
@@ -103,25 +187,33 @@ const Login = ({ navigation }) => {
           <View style={styles.rememberMeContainer}>
             <Checkbox
               status={isChecked ? 'checked' : 'unchecked'}
-              onPress={() => setIsChecked(!isChecked)}
+              onPress={() => !loading && setIsChecked(!isChecked)}
               color="#BEB4FF"
+              disabled={loading}
             />
-            <TouchableOpacity onPress={() => setIsChecked(!isChecked)}>
+            <TouchableOpacity onPress={() => !loading && setIsChecked(!isChecked)} disabled={loading}>
               <Text style={styles.rememberMeText}>Remember Me</Text>
             </TouchableOpacity>
           </View>
 
           <TouchableOpacity
-            style={[styles.loginButton, (!email || !password) && styles.loginButtonDisabled]}
+            style={[
+              styles.loginButton,
+              (loading || !email || !password) && styles.loginButtonDisabled
+            ]}
             onPress={handleLogin}
-            disabled={!email || !password || loading}
+            disabled={loading || !email || !password}
           >
-            <Text style={styles.loginButtonText}>{loading ? 'Logging in...' : 'Login'}</Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginButtonText}>Login</Text>
+            )}
           </TouchableOpacity>
 
           <View style={styles.createAccountContainer}>
             <Text style={styles.dontHaveAccountText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Register')} disabled={loading}>
               <Text style={styles.createAccountText}>Create one</Text>
             </TouchableOpacity>
           </View>

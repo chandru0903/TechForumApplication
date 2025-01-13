@@ -1,89 +1,159 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
-  Switch,
-  TouchableOpacity,
-  StyleSheet,
   Image,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  RefreshControl,
+  Alert,
+  Animated,
+  Switch,  
 } from 'react-native';
 import { useDarkMode } from './Context/DarkMode';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
+import { useAuth } from './Context/Authentication'; // Make sure to import useAuth
+import { useFocusEffect } from '@react-navigation/native';
 
 const SettingsScreen = ({ navigation }) => {
   const { darkMode, toggleDarkMode } = useDarkMode();
+  const { logout: authLogout } = useAuth(); // Get logout function from auth context
   const backgroundColor = darkMode ? '#333' : '#f9f9f9';
   const textColor = darkMode ? '#fff' : '#000';
   const headerColor = darkMode ? '#222' : '#003f8a';
+  const [profileData, setProfileData] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Add animated values
+  const fadeAnim = new Animated.Value(1);
+  const slideAnim = new Animated.Value(0);
 
-  const handleLogout = async (navigation) => {
-    try {
-      // Show confirmation dialog
-      Alert.alert(
-        "Logout",
-        "Are you sure you want to logout?",
-        [
-          {
-            text: "Cancel",
-            style: "cancel"
-          },
-          {
-            text: "Logout",
-            onPress: async () => {
+  const handleLogout = async () => {
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to logout?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Logout",
+          onPress: async () => {
+            try {
+              // Start animations
+              Animated.parallel([
+                Animated.timing(fadeAnim, {
+                  toValue: 0,
+                  duration: 200,
+                  useNativeDriver: true,
+                }),
+                Animated.timing(slideAnim, {
+                  toValue: 100,
+                  duration: 400,
+                  useNativeDriver: true,
+                })
+              ]).start();
+
+              // All keys that need to be cleared
+              const keysToRemove = [
+                'userId',
+                'authToken',
+                'userToken',
+                'refreshToken',
+                'isLoggedIn',
+                'tempEmail',
+                'tempPassword',
+                'userData',
+                'profileData',
+                'userEmail'
+              ];
+
               try {
-                // Clear all stored tokens
-                await AsyncStorage.removeItem('userToken');
-                await AsyncStorage.removeItem('refreshToken');
+                // Clear all auth-related data from AsyncStorage
+                await AsyncStorage.multiRemove(keysToRemove);
                 
-                // Clear user data
-                await AsyncStorage.removeItem('userData');
-                
-                // Clear any other app-specific stored data
-                await AsyncStorage.multiRemove([
-                  'settings',
-                  'preferences',
-                  'lastLoginDate',
-                  // Add any other keys you need to clear
-                ]);
-                
-                // Optional: Clear any realm/sqlite database if you're using one
-                // await clearDatabase();
-                
-                // Optional: Revoke the token on the server
-                await revokeTokenOnServer();
-                
-                // Navigate to login screen
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'Login' }],
-                });
-                
+                // Call auth context logout
+                await authLogout();
+
+                // Add a slight delay for animation
+                setTimeout(() => {
+                  // Reset navigation stack and redirect to Login
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ 
+                      name: 'login',
+                      params: { animated: true }
+                    }],
+                  });
+                }, 800);
+
               } catch (error) {
-                console.error('Logout error:', error);
+                console.error('Error during logout:', error);
                 Alert.alert(
                   "Error",
-                  "Failed to logout. Please try again.",
-                  [{ text: "OK" }]
+                  "Failed to logout completely. Please try again."
                 );
               }
-            },
-            style: "destructive"
-          }
-        ]
-      );
+
+            } catch (error) {
+              console.error('Logout error:', error);
+              Alert.alert(
+                "Error",
+                "Failed to logout. Please try again."
+              );
+            }
+          },
+          style: "destructive"
+        }
+      ]
+    );
+  };
+
+  const fetchProfileData = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) {
+        return;
+      }
+      
+      const response = await fetch('http://192.168.151.27/TechForum/backend/profile.php?id=' + userId);
+      
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        setProfileData(data.data);
+      }
     } catch (error) {
-      console.error('Logout error:', error);
-      Alert.alert(
-        "Error",
-        "An unexpected error occurred.",
-        [{ text: "OK" }]
-      );
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
     }
   };
-  
-  // Optional: Function to revoke token on server
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchProfileData();
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 2000);
+  }, []);
+
+  // Automatically fetch data when the screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfileData(); // Call the API when the screen is focused
+    }, [])
+  );
+
+  // Initial fetch when the screen loads for the first time
+  useEffect(() => {
+    fetchProfileData();
+  }, []);
+
+
   const revokeTokenOnServer = async () => {
     try {
       const token = await AsyncStorage.getItem('userToken');
@@ -102,52 +172,78 @@ const SettingsScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Token revocation error:', error);
-      // Continue with logout even if token revocation fails
     }
   };
 
   return (
-    <View style={[styles.container, { backgroundColor }]}>
+    <Animated.View 
+      style={[
+        styles.container, 
+        { backgroundColor },
+        {
+          opacity: fadeAnim,
+          transform: [{
+            translateY: slideAnim
+          }]
+        }
+      ]}
+    >
       <View style={[styles.header, { backgroundColor: headerColor }]}>
         <Text style={[styles.headerText, { color: textColor }]}>Settings</Text>
       </View>
 
       <View style={styles.profileContainer}>
         <Image
-          source={require('./assets/Profile.png')}
+          source={profileData?.profile_image ? { uri: profileData.profile_image } : require('./assets/Profile.png')}
           style={styles.profileImage}
         />
-        <Text style={[styles.profileName, { color: textColor }]}>Chandru</Text>
+        <Text style={[styles.profileName, { color: textColor }]}>
+          {profileData?.full_name || profileData?.username || 'Loading...'} 
+        </Text>
       </View>
-
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: '#757575' }]}>Account Settings</Text>
-        <TouchableOpacity
-          style={styles.row}
-          onPress={() => navigation.navigate('EditProfile')}
-        >
-          <Text style={[styles.rowText, { color: textColor }]}>Edit profile</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.row}
-          onPress={() => navigation.navigate('ChangePassword')}
-        >
-          <Text style={[styles.rowText, { color: textColor }]}>Change Password</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.row}
-          onPress={() => navigation.navigate('Notifications')}
-        >
-          <Text style={[styles.rowText, { color: textColor }]}>Notification Settings</Text>
-        </TouchableOpacity>
-        <View style={styles.row}>
-          <Text style={[styles.rowText, { color: textColor }]}>Dark mode</Text>
-          <Switch
-            value={darkMode}
-            onValueChange={toggleDarkMode}
+      
+      <ScrollView
+        style={styles.mainScroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#6C5CE7"
+            colors={['#6C5CE7']}
+            progressBackgroundColor={darkMode ? '#555' : '#fff'}
           />
+        }
+      >
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: '#757575' }]}>Account Settings</Text>
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => navigation.navigate('EditProfile')}
+          >
+            <Text style={[styles.rowText, { color: textColor }]}>Edit profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => navigation.navigate('ChangePassword')}
+          >
+            <Text style={[styles.rowText, { color: textColor }]}>Change Password</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => navigation.navigate('Notifications')}
+          >
+            <Text style={[styles.rowText, { color: textColor }]}>Notification Settings</Text>
+          </TouchableOpacity>
+          <View style={styles.row}>
+            <Text style={[styles.rowText, { color: textColor }]}>Dark mode</Text>
+            <Switch
+              value={darkMode}
+              onValueChange={toggleDarkMode}
+            />
+          </View>
         </View>
-      </View>
+      </ScrollView>
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: '#757575' }]}>More</Text>
@@ -171,21 +267,21 @@ const SettingsScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.row}
-          onPress={() => handleLogout(navigation)}
-        >
-          <View style={styles.logoutContainer}>
-            <MaterialIcons
-              name="logout"
-              size={24}
-              color={textColor}
-              style={styles.logoutIcon}
-            />
-            <Text style={[styles.rowText, { color: textColor }]}>Log out</Text>
-          </View>
-        </TouchableOpacity>
+        style={styles.row}
+        onPress={handleLogout}
+      >
+        <View style={styles.logoutContainer}>
+          <MaterialIcons
+            name="logout"
+            size={24}
+            color={textColor}
+            style={styles.logoutIcon}
+          />
+          <Text style={[styles.rowText, { color: textColor }]}>Log out</Text>
+        </View>
+      </TouchableOpacity>
       </View>
-    </View>
+    </Animated.View>
   );
 };
 
@@ -224,6 +320,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 15,
     marginBottom: 10,
     fontWeight: 'bold',
+  },
+  mainScroll: {
+    flex: 1,
   },
   row: {
     flexDirection: 'row',

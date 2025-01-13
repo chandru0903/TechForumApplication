@@ -76,12 +76,13 @@ const RegisterScreen = ({ navigation }) => {
       newErrors.password = '';
     }
 
+  
     // Validate confirm password
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = 'Please confirm your password';
       isValid = false;
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+    } else if (formData.password !== formData.confirmPassword) { color = '#fff';
+      newErrors.confirmPassword = 'Passwords do not match' ; 
       isValid = false;
     } else {
       newErrors.confirmPassword = '';
@@ -229,17 +230,23 @@ const RegisterScreen = ({ navigation }) => {
         </View>
       </View>
       <CustomAlert
-        visible={alertConfig.visible}
-        title={alertConfig.title}
-        message={alertConfig.message}
-        type={alertConfig.type}
-        onClose={() => {
-          setAlertConfig(prev => ({ ...prev, visible: false }));
-          if (alertConfig.type === 'success') {
-            navigation.navigate('Welcome');
-          }
-        }}
-      />
+  visible={alertConfig.visible}
+  title={alertConfig.title}
+  message={alertConfig.message}
+  type={alertConfig.type}
+  onClose={() => {
+    setAlertConfig(prev => ({ ...prev, visible: false }));
+    if (alertConfig.type === 'success') {
+      if (alertConfig.target === 'verification') {
+        navigation.navigate('EmailVerification2', {
+          email: formData.email.trim(),
+        });
+      } else {
+        navigation.navigate('Welcome');
+      }
+    }
+  }}
+/>
     </KeyboardAvoidingView>
   );
 };
