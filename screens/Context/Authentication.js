@@ -8,10 +8,11 @@ export const AuthProvider = ({ children }) => {
   const [userId, setUserId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authToken, setAuthToken] = useState(null);
+
   useEffect(() => {
     loadStoredAuth();
   }, []);
- 
+
   const loadStoredAuth = async () => {
     try {
       const [storedUserId, storedToken] = await Promise.all([
@@ -22,11 +23,44 @@ export const AuthProvider = ({ children }) => {
       if (storedUserId && storedToken) {
         setUserId(storedUserId);
         setAuthToken(storedToken);
+        
+        // Check if token needs to be refreshed
+        await refreshAuthTokenIfNeeded(storedToken);
       }
     } catch (error) {
       console.error('Failed to load stored auth:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const refreshAuthTokenIfNeeded = async (token) => {
+    try {
+      const tokenExpiryDate = await AsyncStorage.getItem('tokenExpiryDate');
+      const expiryDate = new Date(tokenExpiryDate);
+      const currentDate = new Date();
+
+      // Check if token is nearing expiration (e.g., within 7 days)
+      if (expiryDate - currentDate < 7 * 24 * 60 * 60 * 1000) {
+        // Call API to refresh token
+        const response = await fetch(`${apiUrl}/refresh-token.php`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ token }),
+        });
+
+        const data = await response.json();
+        if (data.success && data.newToken) {
+          await AsyncStorage.setItem('authToken', data.newToken);
+          await AsyncStorage.setItem('tokenExpiryDate', new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString()); // 6 months expiry
+          setAuthToken(data.newToken);
+        }
+      }
+    } catch (error) {
+      console.error('Token refresh error:', error);
     }
   };
 
@@ -45,10 +79,12 @@ export const AuthProvider = ({ children }) => {
 
       if (data.success && data.userId) {
         const token = data.token || `temp-token-${Date.now()}`;
+        const expiryDate = new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000); // 6 months expiry
         
         await Promise.all([
           AsyncStorage.setItem('userId', data.userId.toString()),
-          AsyncStorage.setItem('authToken', token)
+          AsyncStorage.setItem('authToken', token),
+          AsyncStorage.setItem('tokenExpiryDate', expiryDate.toISOString())
         ]);
         
         setUserId(data.userId.toString());
@@ -68,7 +104,8 @@ export const AuthProvider = ({ children }) => {
     try {
       await Promise.all([
         AsyncStorage.removeItem('userId'),
-        AsyncStorage.removeItem('authToken')
+        AsyncStorage.removeItem('authToken'),
+        AsyncStorage.removeItem('tokenExpiryDate')
       ]);
       setUserId(null);
       setAuthToken(null);
@@ -79,7 +116,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (fullName, email, password) => {
     try {
-      const response = await fetch(`${apiUrl}/register.php`, {  // Corrected template literal
+      const response = await fetch(`${apiUrl}/register.php`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -88,17 +125,15 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ fullName, email, password }),
       });
 
-      // Check if the response status indicates an error
       if (!response.ok) {
-        const errorMessage = await response.text(); // Read the full response text for debugging
+        const errorMessage = await response.text();
         console.error(`API Error: ${response.status} - ${response.statusText}`);
         console.error(`Response Body: ${errorMessage}`);
-        return { success: false, message: `Server error: ${response.statusText}` };  // Corrected string interpolation
+        return { success: false, message: `Server error: ${response.statusText}` };
       }
 
       const data = await response.json();
 
-      // Check if the server indicates success
       if (!data.success) {
         console.error('Server Response:', data);
       }
@@ -106,7 +141,7 @@ export const AuthProvider = ({ children }) => {
       return data;
     } catch (error) {
       console.error('Register error:', error);
-      return { success: false, message: `Connection error: ${error.message}` };  // Corrected string interpolation
+      return { success: false, message: `Connection error: ${error.message}` };
     }
   };
 

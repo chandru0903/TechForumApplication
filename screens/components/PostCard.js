@@ -345,6 +345,7 @@ const styles = StyleSheet.create({
   postContainer: {
     padding: 16,
     marginBottom: 16,
+    marginVertical: 8,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: {

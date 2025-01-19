@@ -10,6 +10,7 @@ import {
   Dimensions,
   RefreshControl,
   ActivityIndicator,
+  Animated,
   Modal,
   TextInput,
 } from 'react-native';
@@ -19,10 +20,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDarkMode } from './Context/DarkMode';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import PostCard from './components/PostCard';
+import QNA_Card from './components/QNA_Card';
+
 
 
 const UserProfileScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const screenWidth = Dimensions.get('window').width;
   const [activeTab, setActiveTab] = useState('posts');
   const [posts, setPosts] = useState([]);
   const [questions, setQuestions] = useState([]);
@@ -30,6 +34,9 @@ const UserProfileScreen = ({ navigation }) => {
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState(null);
+  const [slideAnim] = useState(new Animated.Value(0));
+
+
 
   const { darkMode } = useDarkMode();
   const backgroundColor = darkMode ? '#333' : '#f9f9f9';
@@ -38,12 +45,39 @@ const UserProfileScreen = ({ navigation }) => {
   const tabInactiveColor = darkMode ? '#888' : '#666';
   const dividerColor = darkMode ? '#555' : '#E5E5E5';
 
+  const dynamicStyles = {
+    contentWrapper: {
+      flex: 1,
+      width: '100%',
+      overflow: 'hidden',
+    },
+    animatedContainer: {
+      flex: 1,
+      width: screenWidth * 2,
+    },
+    tabContent: {
+      marginTop: 16,
+      width: screenWidth,
+      
+    },
+    emptyStateContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 32,
+      backgroundColor: 'transparent',
+      minHeight: 200,
+      width: screenWidth,
+    },
+  };
+
   const fetchProfileData = async () => {
     try {
       setLoading(true);
       const userId = await AsyncStorage.getItem('userId');
       setUserId(userId);
-      
+      const authToken = await AsyncStorage.getItem('authToken');
+      if (!authToken) return;
+      console.log('authToken', authToken);
       if (!userId) {
         return;
       }
@@ -61,11 +95,85 @@ const UserProfileScreen = ({ navigation }) => {
     }
   };
 
+  const switchTab = (tab) => {
+    const toValue = tab === 'posts' ? 0 : screenWidth;
+    
+    Animated.spring(slideAnim, {
+      toValue: tab === 'posts' ? 0 : -screenWidth,
+      useNativeDriver: true,
+      friction: 8,
+      tension: 50
+    }).start();
+    
+    setActiveTab(tab);
+  };
+
+  const renderContent = () => (
+    <View style={dynamicStyles.contentWrapper}>
+      <Animated.View 
+        style={[
+          dynamicStyles.animatedContainer,
+          {
+            transform: [{ translateX: slideAnim }],
+            flexDirection: 'row',
+          }
+        ]}
+      >
+        {/* Posts Tab Content */}
+        <View style={dynamicStyles.tabContent}>
+          {loading ? (
+            <ActivityIndicator color="#6C5CE7" style={styles.loadingIndicator} />
+          ) : posts.length > 0 ? (
+            posts.map(post => (
+              <PostCard
+                key={post.id}
+                post={post}
+                darkMode={darkMode}
+                userId={userId}
+                onLike={handleLike}
+                onDislike={handleDislike}
+                onBookmark={handleBookmark}
+                onRefresh={fetchUserPosts}
+              />
+            ))
+          ) : (
+            renderEmptyState('posts')
+          )}
+        </View>
+
+        {/* Q&A Tab Content */}
+        <View style={dynamicStyles.tabContent}>
+          {loading ? (
+            <ActivityIndicator color="#6C5CE7" style={styles.loadingIndicator} />
+          ) : questions.length > 0 ? (
+            questions.map(question => (
+              <QNA_Card
+                key={question.id}
+                item={question}
+                darkMode={darkMode}
+                onPress={() => navigation.navigate('QuestionDetail', { questionId: question.id })}
+                onVote={handleVote}
+                currentUser={userId}
+                themeStyles={{
+                  backgroundColor: darkMode ? '#333' : '#f9f9f9',
+                  textColor: darkMode ? '#fff' : '#000'
+                }}
+              />
+            ))
+          ) : (
+            renderEmptyState('qa')
+          )}
+        </View>
+      </Animated.View>
+    </View>
+  );
+
+  
   const handleBookmark = async (postId) => {
     try {
       if (!userId) return;
       
-      const response = await fetch('http://192.168.151.27/TechForum/backend/post_type.php?action=bookmark', {
+      const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php?action=bookmark', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -89,7 +197,7 @@ const UserProfileScreen = ({ navigation }) => {
     try {
       if (!userId) return;
       
-      const response = await fetch('http://192.168.151.27/TechForum/backend/post_type.php?action=react', {
+      const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php?action=react', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -114,7 +222,7 @@ const UserProfileScreen = ({ navigation }) => {
     try {
       if (!userId) return;
       
-      const response = await fetch('http://192.168.151.27/TechForum/backend/post_type.php?action=react', {
+      const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php?action=react', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -135,22 +243,52 @@ const UserProfileScreen = ({ navigation }) => {
     }
   };
 
+  const handleVote = async (postId, voteType) => {
+    try {
+      if (!userId) return;
+      
+      const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php?action=react', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: postId,
+          user_id: userId,
+          reaction_type: voteType === 'upvote' ? 'like' : 'dislike'
+        }),
+      });
+  
+      const data = await response.json();
+      if (data.success) {
+        fetchUserPosts();
+      }
+    } catch (error) {
+      console.error('Error handling vote:', error);
+    }
+  };
+
   const fetchUserPosts = async () => {
     try {
       const userId = await AsyncStorage.getItem('userId');
       if (!userId) return;
   
-      const response = await fetch(
-        `http://192.168.151.27/TechForum/backend/posts_view.php?user_id=${userId}&post_type=${activeTab === 'posts' ? 'post' : 'qa'}`
+      // Fetch both posts and questions separately
+      const postsResponse = await fetch(
+        `http://192.168.151.27/TechForum/backend/posts_view.php?user_id=${userId}&post_type=post`
       );
-      const data = await response.json();
+      const questionsResponse = await fetch(
+        `http://192.168.151.27/TechForum/backend/posts_view.php?user_id=${userId}&post_type=qa`
+      );
       
-      if (data.success) {
-        if (activeTab === 'posts') {
-          setPosts(data.data);
-        } else {
-          setQuestions(data.data);
-        }
+      const postsData = await postsResponse.json();
+      const questionsData = await questionsResponse.json();
+      
+      if (postsData.success) {
+        setPosts(postsData.data || []);
+      }
+      if (questionsData.success) {
+        setQuestions(questionsData.data || []);
       }
     } catch (error) {
       console.error('Error fetching user posts:', error);
@@ -177,18 +315,18 @@ const UserProfileScreen = ({ navigation }) => {
   }, []);
 
   const renderEmptyState = (type) => (
-    <View style={styles.emptyStateContainer}>
+    <View style={dynamicStyles.emptyStateContainer}>
       <MaterialCommunityIcons
         name={type === 'posts' ? 'post-outline' : 'help-circle-outline'}
         size={50}
         color={darkMode ? '#aaa' : '#666'}
+        style={styles.emptyStateIcon}
       />
       <Text style={[styles.emptyStateText, { color: textColor }]}>
         {type === 'posts' ? 'No posts available' : 'No questions available'}
       </Text>
     </View>
   );
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor, paddingTop: insets.top }]}>
       <ScrollView
@@ -239,6 +377,33 @@ const UserProfileScreen = ({ navigation }) => {
           <Text style={[styles.bio, { color: darkMode ? '#ccc' : '#444' }]}>
             {profileData?.bio || 'No bio available'}
           </Text>
+          
+                    <View style={[styles.statsRow, { borderColor: dividerColor }]}>
+                      <View style={styles.statItem}>
+                        <Text style={[styles.statNumber, { color: textColor }]}>
+                          {profileData?.stats?.followers || 0}
+                        </Text>
+                        <Text style={[styles.statLabel, { color: tabInactiveColor }]}>followers</Text>
+                      </View>
+                      <View style={styles.statItem}>
+                        <Text style={[styles.statNumber, { color: textColor }]}>
+                          {profileData?.posts_count || 0}
+
+                        </Text>
+                        <Text style={[styles.statLabel, { color: tabInactiveColor }]}>posts</Text>
+                      </View>
+                      <View style={styles.statItem}>
+                        <Text style={[styles.statNumber, { color: textColor }]}>{profileData?.qa_count || 0}</Text>
+                        <Text style={[styles.statLabel, { color: tabInactiveColor }]}>Q&A</Text>
+                      </View>
+                      <View style={styles.statItem}>
+                        <Text style={[styles.statNumber, { color: textColor }]}>
+                          {profileData?.stats?.following || 0}
+                        </Text>
+                        <Text style={[styles.statLabel, { color: tabInactiveColor }]}>following</Text>
+                      </View>
+                    </View>
+                  
 
           {/* Stats Row */}
           <View style={[styles.statsRow, { borderColor: dividerColor }]}>
@@ -247,10 +412,12 @@ const UserProfileScreen = ({ navigation }) => {
         </View>
 
         {/* Tabs */}
+        {/* Tabs */}
+        {/* Tabs */}
         <View style={[styles.tabContainer, { borderBottomColor: dividerColor }]}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'posts' && styles.activeTab]}
-            onPress={() => setActiveTab('posts')}
+            onPress={() => switchTab('posts')}
           >
             <Text
               style={[
@@ -263,7 +430,7 @@ const UserProfileScreen = ({ navigation }) => {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'qa' && styles.activeTab]}
-            onPress={() => setActiveTab('qa')}
+            onPress={() => switchTab('qa')}
           >
             <Text
               style={[
@@ -276,44 +443,10 @@ const UserProfileScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
+
+
         {/* Content */}
-        <View style={styles.content}>
-          {loading ? (
-            <ActivityIndicator color="#6C5CE7" style={styles.loadingIndicator} />
-          ) : activeTab === 'posts' ? (
-            posts.length > 0 ? (
-              posts.map(post => (
-                <PostCard
-                  key={post.id}
-                  post={post}
-                  darkMode={darkMode}
-                  userId={userId}
-                  onLike={handleLike}
-                  onDislike={handleDislike}
-                  onBookmark={handleBookmark}
-                  onRefresh={fetchUserPosts}
-                />
-              ))
-            ) : (
-              renderEmptyState('posts')
-            )
-          ) : questions.length > 0 ? (
-            questions.map(question => (
-              <PostCard
-                key={question.id}
-                post={question}
-                darkMode={darkMode}
-                userId={userId}
-                onLike={handleLike}
-                onDislike={handleDislike}
-                onBookmark={handleBookmark}
-                onRefresh={fetchUserPosts}
-              />
-            ))
-          ) : (
-            renderEmptyState('qa')
-          )}
-        </View>
+        {renderContent()}
       </ScrollView>
 
       {/* Write Button */}
@@ -448,20 +581,6 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#6C5CE7',
     fontWeight: '600',
-  },
-  content: {
-    flex: 1,
-    minHeight: 300, // Ensure there's enough space to scroll
-  },
-  emptyStateContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 8,
   },
   writeButton: {
     position: 'absolute',
@@ -601,6 +720,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginTop: 8,
+  },
+  content: {
+    flexDirection: 'row',
+    width: Dimensions.get('window').width * 2, // Double the screen width
+  },
+  contentWrapper: {
+    flex: 1,
+    width: '100%',
+    overflow: 'hidden', // Important to clip content during animation
+  },
+  animatedContainer: {
+    flex: 1,
+    width: Dimensions.get('window').width*2// Double screen width to hold both tabs
+  },
+  tabContent: {
+    width: Dimensions.get('window').width, // Single screen width
+  },
+  contentContainer: {
+    flex: 1,
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    backgroundColor: 'transparent',
+    minHeight: 200,
+    width: Dimensions.get('window').width, // Ensure empty state takes full width
+  },
+  emptyStateIcon: {
+    marginBottom: 16,
+    opacity: 0.8,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    textAlign: 'center',
+    opacity: 0.8,
   },
 });
 

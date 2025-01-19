@@ -10,6 +10,8 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Dimensions,
+  Animated,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +21,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDarkMode } from './Context/DarkMode';
 import { apiUrl } from './config';
 import { useFocusEffect } from '@react-navigation/native';
+import PostCard from './components/PostCard';
+import QNA_Card from './components/QNA_Card';
 
 const ProfileScreen = ({ route, navigation }) => {
   const { userId } = route.params;
@@ -31,6 +35,10 @@ const ProfileScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [slideAnim] = useState(new Animated.Value(0));
+  const [posts, setPosts] = useState([]);
+  const [questions, setQuestions] = useState([]);
+  const screenWidth = Dimensions.get('window').width;
 
   const { darkMode } = useDarkMode();
   const backgroundColor = darkMode ? '#333' : '#f9f9f9';
@@ -38,6 +46,29 @@ const ProfileScreen = ({ route, navigation }) => {
   const headerColor = darkMode ? '#222' : '#003f8a';
   const tabInactiveColor = darkMode ? '#888' : '#666';
   const dividerColor = darkMode ? '#555' : '#E5E5E5';
+
+  const dynamicStyles = {
+    contentWrapper: {
+      flex: 1,
+      width: '100%',
+      overflow: 'hidden',
+    },
+    animatedContainer: {
+      flex: 1,
+      width: screenWidth * 2,
+    },
+    tabContent: {
+      width: screenWidth,
+    },
+    emptyStateContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 32,
+      backgroundColor: 'transparent',
+      minHeight: 200,
+      width: screenWidth,
+    },
+  };
 
   const getCurrentUserId = async () => {
     try {
@@ -53,6 +84,228 @@ const ProfileScreen = ({ route, navigation }) => {
       return null;
     }
   };
+
+  const fetchUserPosts = async () => {
+    try {
+      console.log('Fetching posts for user:', userId);
+      
+      // Fetch posts
+      const postsResponse = await fetch(
+        `${apiUrl}/posts_view.php?user_id=${userId}&post_type=post`
+      );
+      
+      // Fetch questions
+      const questionsResponse = await fetch(
+        `${apiUrl}/posts_view.php?user_id=${userId}&post_type=qa`
+      );
+
+      const postsData = await postsResponse.json();
+      const questionsData = await questionsResponse.json();
+
+      console.log('Posts response:', postsData);
+      console.log('Questions response:', questionsData);
+
+      if (postsData.success) {
+        setPosts(postsData.data || []);
+      }
+      if (questionsData.success) {
+        setQuestions(questionsData.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching user posts:', error);
+    }
+  };
+
+  const switchTab = (tab) => {
+    Animated.spring(slideAnim, {
+      toValue: tab === 'posts' ? 0 : -screenWidth,
+      useNativeDriver: true,
+      friction: 8,
+      tension: 50
+    }).start();
+    
+    setActiveTab(tab);
+  };
+
+  const handleLike = async (postId) => {
+    try {
+      const authToken = await AsyncStorage.getItem('authToken');
+      if (!authToken) return;
+
+      const response = await fetch(`http://192.168.151.27/TechForum/backend/post_reaction.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          post_id: postId,
+          reaction_type: 'like'
+        }),
+      });
+
+      if (response.ok) {
+        fetchUserPosts();
+      }
+    } catch (error) {
+      console.error('Error handling like:', error);
+    }
+  };
+
+  const handleDislike = async (postId) => {
+    try {
+      const authToken = await AsyncStorage.getItem('authToken');
+      if (!authToken) return;
+
+      const response = await fetch(`${apiUrl}/post_reaction.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          post_id: postId,
+          reaction_type: 'dislike'
+        }),
+      });
+
+      if (response.ok) {
+        fetchUserPosts();
+      }
+    } catch (error) {
+      console.error('Error handling dislike:', error);
+    }
+  };
+
+  const handleBookmark = async (postId) => {
+    try {
+      const authToken = await AsyncStorage.getItem('authToken');
+      if (!authToken) return;
+
+      const response = await fetch(`${apiUrl}/post_bookmark.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          post_id: postId
+        }),
+      });
+
+      if (response.ok) {
+        fetchUserPosts();
+      }
+    } catch (error) {
+      console.error('Error handling bookmark:', error);
+    }
+  };
+
+  const lightThemeStyles = {
+    backgroundColor: '#FFFFFF',
+    textColor: '#000000',
+    secondaryTextColor: '#666666',
+  };
+
+  const darkThemeStyles = {
+    backgroundColor: '#2C2C2C',
+    textColor: '#FFFFFF',
+    secondaryTextColor: '#CCCCCC',
+  };
+
+  const handleQnaVote = async (questionId, voteType) => {
+    try {
+      const authToken = await AsyncStorage.getItem('authToken');
+      if (!authToken) return;
+
+      const response = await fetch(`${apiUrl}/qa_vote.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          question_id: questionId,
+          vote_type: voteType
+        }),
+      });
+
+      if (response.ok) {
+        fetchUserPosts(); // Refresh the data
+      }
+    } catch (error) {
+      console.error('Error handling QNA vote:', error);
+    }
+  };
+  const renderContent = () => (
+    <View style={dynamicStyles.contentWrapper}>
+      <Animated.View 
+        style={[
+          dynamicStyles.animatedContainer,
+          {
+            transform: [{ translateX: slideAnim }],
+            flexDirection: 'row',
+          }
+        ]}
+      >
+        {/* Posts Tab Content */}
+        <View style={dynamicStyles.tabContent}>
+          {loading ? (
+            <ActivityIndicator color="#6C5CE7" style={styles.loadingIndicator} />
+          ) : posts.length > 0 ? (
+            posts.map(post => (
+              <PostCard
+                key={post.id}
+                post={post}
+                darkMode={darkMode}
+                userId={currentUserId}
+                onLike={handleLike}
+                onDislike={handleDislike}
+                onBookmark={handleBookmark}
+                onRefresh={fetchUserPosts}
+              />
+            ))
+          ) : (
+            renderEmptyState('posts')
+          )}
+        </View>
+
+        {/* Q&A Tab Content */}
+        <View style={dynamicStyles.tabContent}>
+          {loading ? (
+            <ActivityIndicator color="#6C5CE7" style={styles.loadingIndicator} />
+          ) : questions.length > 0 ? (
+            questions.map(question => (
+              <QNA_Card
+                key={question.id}
+                item={{
+                  id: question.id,
+                  title: question.title || question.content,
+                  description: question.description || question.content,
+                  votes: question.votes || 0,
+                  views: question.views || 0,
+                  created_at: question.created_at,
+                  username: question.username,
+                  profile_image: question.profile_image
+                }}
+                darkMode={darkMode}
+                onPress={() => navigation.navigate('QuestionDetail', { questionId: question.id })}
+                onVote={handleQnaVote}
+                currentUser={currentUserId}
+                themeStyles={darkMode ? darkThemeStyles : lightThemeStyles}
+              />
+            ))
+          ) : (
+            renderEmptyState('qa')
+          )}
+        </View>
+      </Animated.View>
+    </View>
+  );
+
+  useEffect(() => {
+    Promise.all([fetchUserProfile(), fetchUserPosts()]);
+  }, [userId]);
 
   const fetchUserProfile = async () => {
     try {
@@ -163,6 +416,7 @@ const ProfileScreen = ({ route, navigation }) => {
       );
     }
   
+    
   
   
   };  const renderEmptyState = (type) => (
@@ -178,28 +432,7 @@ const ProfileScreen = ({ route, navigation }) => {
     </View>
   );
 
-  const renderContent = () => {
-    if (!userData) return null;
-
-    return (
-      <View style={styles.content}>
-        {activeTab === 'posts' ? (
-          Array.isArray(userData.posts) && userData.posts.length > 0 ? (
-            userData.posts.map((post) => renderPost(post))
-          ) : (
-            renderEmptyState('posts')
-          )
-        ) : (
-          Array.isArray(userData.questions) && userData.questions.length > 0 ? (
-            userData.questions.map((question) => renderQuestion(question))
-          ) : (
-            renderEmptyState('qa')
-          )
-        )}
-      </View>
-    );
-  };
-
+ 
   
 
   useEffect(() => {
@@ -208,7 +441,12 @@ const ProfileScreen = ({ route, navigation }) => {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchUserProfile();
+    Promise.all([
+      fetchUserProfile(),
+      fetchUserPosts()
+    ]).finally(() => {
+      setRefreshing(false);
+    });
   }, [userId]);
 
   useFocusEffect(
@@ -271,7 +509,21 @@ const ProfileScreen = ({ route, navigation }) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor, paddingTop: insets.top }]}>
+    
+      <SafeAreaView style={[styles.container, { backgroundColor, paddingTop: insets.top }]}>
+      <ScrollView
+        style={styles.mainScroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#6C5CE7']}
+            progressBackgroundColor={darkMode ? '#555' : '#fff'}
+          />
+        }
+      >
+        
       <Image
         source={require('./assets/HomeBackground.png')}
         style={styles.backgroundImage}
@@ -286,18 +538,6 @@ const ProfileScreen = ({ route, navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.mainScroll}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#6C5CE7']}
-            progressBackgroundColor={darkMode ? '#555' : '#fff'}
-          />
-        }
-      >
         <View style={styles.profileContainer}>
           <View style={styles.profileHeader}>
             <Image
@@ -329,12 +569,12 @@ const ProfileScreen = ({ route, navigation }) => {
               <Text style={[styles.statLabel, { color: tabInactiveColor }]}>followers</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: textColor }]}>1.2k</Text>
+              <Text style={[styles.statNumber, { color: textColor }]}>{userData?.stats?.posts || 0}</Text>
               <Text style={[styles.statLabel, { color: tabInactiveColor }]}>posts</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: textColor }]}>3k</Text>
-              <Text style={[styles.statLabel, { color: tabInactiveColor }]}>forums</Text>
+              <Text style={[styles.statNumber, { color: textColor }]}>{userData?.stats?.qna || 0}</Text>
+              <Text style={[styles.statLabel, { color: tabInactiveColor }]}>Q&A</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={[styles.statNumber, { color: textColor }]}>
@@ -355,10 +595,10 @@ const ProfileScreen = ({ route, navigation }) => {
               {isFollowing ? 'Following' : 'Follow'}
             </Text>
           </TouchableOpacity>
-        <View style={[styles.tabContainer, { borderBottomColor: dividerColor }]}>
+          <View style={[styles.tabContainer, { borderBottomColor: dividerColor }]}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'posts' && styles.activeTab]}
-            onPress={() => setActiveTab('posts')}
+            onPress={() => switchTab('posts')}
           >
             <Text
               style={[
@@ -371,7 +611,7 @@ const ProfileScreen = ({ route, navigation }) => {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'qa' && styles.activeTab]}
-            onPress={() => setActiveTab('qa')}
+            onPress={() => switchTab('qa')}
           >
             <Text
               style={[
@@ -385,6 +625,8 @@ const ProfileScreen = ({ route, navigation }) => {
         </View>
 
         {renderContent()}
+
+        
       </ScrollView>
 
       <Modal
@@ -560,6 +802,26 @@ const styles = StyleSheet.create({
   modalOptionText: {
     fontSize: 16,
     marginLeft: 12,
+  },
+  contentWrapper: {
+    flex: 1,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  animatedContainer: {
+    flex: 1,
+    width: Dimensions.get('window').width * 2,
+  },
+  tabContent: {
+    width: Dimensions.get('window').width,
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    backgroundColor: 'transparent',
+    minHeight: 200,
+    width: Dimensions.get('window').width,
   },
 });
 export default ProfileScreen;

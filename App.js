@@ -31,6 +31,7 @@ import CommunitiesScreen from './screens/CommunitiesScreen';
 import RegisterEmailVerify from './screens/RegisterEmailVerify';
 import ForumScreen from './screens/ForumScreen';
 import SearchScreen from './screens/SearchScreen';
+import QuestionDetailScreen from './screens/components/QuestionDetails';
 // Import Loading Screen component
 
 import LoadingScreen from './screens/LoadingScreen';
@@ -96,8 +97,8 @@ export default function App() {
         },
       };
     },
-    gestureEnabled: true,
-    gestureDirection: 'horizontal',
+    gestureEnabled: false,
+    
     transitionSpec: {
       open: {
         animation: 'timing',
@@ -136,7 +137,7 @@ export default function App() {
             <Stack.Screen name="Communities" component={CommunitiesScreen}/>
             <Stack.Screen name="RegisterEmailVerify" component={RegisterEmailVerify}/>
             <Stack.Screen name="Forum" component={ForumScreen}/>
-          
+            <Stack.Screen name="QuestionDetail" component={QuestionDetailScreen}/>
             <Stack.Screen name="Search" component={SearchScreen}/>
           </Stack.Navigator>
         </NavigationContainer>
