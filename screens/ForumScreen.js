@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -21,12 +21,21 @@ const ForumScreen = ({ navigation }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [userId, setUserId] = useState(null);
+  
 
   useEffect(() => {
     fetchQuestions();
     fetchCurrentUser();
   }, []);
 
+  useEffect(() => {
+    const getUserId = async () => {
+      const id = await AsyncStorage.getItem('userId');
+      setUserId(id);
+    };
+    getUserId();
+  }, []);
   const fetchCurrentUser = async () => {
     try {
       const userId = await AsyncStorage.getItem('userId');
@@ -74,29 +83,77 @@ const ForumScreen = ({ navigation }) => {
     fetchQuestions();
   };
 
-  const handleVote = async (questionId, voteType) => {
+  const handleVote = async (postId, voteType) => {
     try {
-      const userId = await AsyncStorage.getItem('userId');
-      const response = await fetch('http://192.168.151.27/TechForum/backend/vote_question.php', {
+      const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php?action=react', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          question_id: questionId,
-          user_id: userId,
-          vote_type: voteType,
+          post_id: postId,
+          user_id: userId, // Use userId directly instead of currentUser.id
+          reaction_type: voteType === 'upvote' ? 'like' : 'dislike'
         }),
       });
+  
       const data = await response.json();
+      
       if (data.success) {
-        fetchQuestions();
+        setQuestions(prevQuestions => {
+          return prevQuestions.map(question => {
+            if (question.id === postId) {
+              const hadUpvote = question.user_reaction === 'like';
+              const hadDownvote = question.user_reaction === 'dislike';
+              
+              let likes = question.likes_count || 0;
+              let dislikes = question.dislikes_count || 0;
+              
+              // If clicking the same button, remove the vote
+              if ((voteType === 'upvote' && hadUpvote) || 
+                  (voteType === 'downvote' && hadDownvote)) {
+                if (hadUpvote) likes--;
+                if (hadDownvote) dislikes--;
+                return {
+                  ...question,
+                  likes_count: likes,
+                  dislikes_count: dislikes,
+                  user_reaction: null
+                };
+              }
+              
+              // If changing vote
+              if (voteType === 'upvote') {
+                likes++;
+                if (hadDownvote) dislikes--;
+                return {
+                  ...question,
+                  likes_count: likes,
+                  dislikes_count: dislikes,
+                  user_reaction: 'like'
+                };
+              } else {
+                dislikes++;
+                if (hadUpvote) likes--;
+                return {
+                  ...question,
+                  likes_count: likes,
+                  dislikes_count: dislikes,
+                  user_reaction: 'dislike'
+                };
+              }
+            }
+            return question;
+          });
+        });
+      } else {
+        console.error('Vote update failed:', data.message);
       }
     } catch (error) {
-      console.error('Error voting:', error);
-      Alert.alert('Error', 'Failed to register vote');
+      console.error('Error handling vote:', error);
     }
   };
+
 
   const themeStyles = darkMode ? {
     container: { backgroundColor: '#1a1a1a' },

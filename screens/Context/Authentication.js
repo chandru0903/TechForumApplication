@@ -18,13 +18,10 @@ export const AuthProvider = ({ children }) => {
       const [storedUserId, storedToken] = await Promise.all([
         AsyncStorage.getItem('userId'),
         AsyncStorage.getItem('authToken')
-      ]);
-      
+      ]);      
       if (storedUserId && storedToken) {
         setUserId(storedUserId);
         setAuthToken(storedToken);
-        
-        // Check if token needs to be refreshed
         await refreshAuthTokenIfNeeded(storedToken);
       }
     } catch (error) {
@@ -74,11 +71,13 @@ export const AuthProvider = ({ children }) => {
         },
         body: JSON.stringify({ email, password }),
       });
-
+  
       const data = await response.json();
-
-      if (data.success && data.userId) {
-        const token = data.token || `temp-token-${Date.now()}`;
+  
+      // Key change: Check status instead of success flag
+      if (data.status === 'success' && data.userId) {
+        // Generate a temporary token if not provided
+        const token = `temp-token-${Date.now()}`;
         const expiryDate = new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000); // 6 months expiry
         
         await Promise.all([
@@ -90,13 +89,24 @@ export const AuthProvider = ({ children }) => {
         setUserId(data.userId.toString());
         setAuthToken(token);
         
-        return { success: true, userId: data.userId };
+        return { 
+          success: true, 
+          userId: data.userId,
+          message: data.message 
+        };
       }
-
-      return { success: false, message: data.message || 'Login failed' };
+  
+      // If login fails, return details from backend
+      return { 
+        success: false, 
+        message: data.message || 'Login failed' 
+      };
     } catch (error) {
       console.error('Login error:', error);
-      return { success: false, message: error.message };
+      return { 
+        success: false, 
+        message: error.message 
+      };
     }
   };
 

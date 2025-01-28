@@ -15,169 +15,185 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDarkMode } from '../Context/DarkMode';
 
-const Comment = ({ comment, onReply, onEdit, onDelete, currentUser, themeStyles, level = 0  }) => {
-    const [isEditing, setIsEditing] = useState(false);
-    const [editedContent, setEditedContent] = useState(comment.content);
-    const [showReplyInput, setShowReplyInput] = useState(false);
-    const [replyContent, setReplyContent] = useState('');
-    
-    
-    
+const Comment = ({ comment, onReply, onEdit, onDelete, currentUser, themeStyles, level = 0, navigation }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(comment.content);
+  const [showReplyInput, setShowReplyInput] = useState(false);
+  const [replyContent, setReplyContent] = useState(`@${comment.username} `);
   
-    const isLoggedIn = !!currentUser;
-  const isCommentOwner = currentUser?.id === comment.user_id; 
-  const maxReplyLevel = 5; // Maximum nesting level
+  const isLoggedIn = !!currentUser;
+  const isCommentOwner = currentUser?.id === comment.user_id;
+
   const handleEdit = async () => {
     try {
-        const success = await onEdit(comment.id, editedContent);
-        if (success) {
-            setIsEditing(false);
-        }
+      const success = await onEdit(comment.id, editedContent);
+      if (success) {
+        setIsEditing(false);
+      }
     } catch (error) {
-        Alert.alert('Error', 'Failed to edit comment');
+      Alert.alert('Error', 'Failed to edit comment');
     }
-};
+  };
 
-const handleReply = async () => {
+  const handleReply = async () => {
     if (!replyContent.trim()) {
-        Alert.alert('Error', 'Reply cannot be empty');
-        return;
+      Alert.alert('Error', 'Reply cannot be empty');
+      return;
     }
 
     try {
-        const success = await onReply(comment.id, replyContent);
-        if (success) {
-            setShowReplyInput(false);
-            setReplyContent('');
-        }
+      const parentId = level === 1 ? comment.parent_id : comment.id;
+      const success = await onReply(parentId, replyContent);
+      if (success) {
+        setShowReplyInput(false);
+        setReplyContent(`@${comment.username} `);
+      }
     } catch (error) {
-        Alert.alert('Error', 'Failed to post reply');
+      Alert.alert('Error', 'Failed to post reply');
     }
-};
-  const getLineColor = (level) => {
-    const colors = ['#FF4500', '#00A6A5', '#9F44D3', '#3F9FE0', '#E07A5F'];
-    return colors[level % colors.length];
-};
-  
+  };
+
+ 
   return (
-    <View style={[
-        styles.commentWrapper,
-        level > 0 && styles.nestedCommentWrapper,
-    ]}>
-        {level > 0 && (
-            <View
-                style={[
-                    styles.verticalLine,
-                    { backgroundColor: getLineColor(level - 1) }
-                ]}
-            />
-        )}
-        <View style={[
-            styles.commentContainer,
-            themeStyles.card,
-            level > 0 && styles.nestedComment
-        ]}>
-            <View style={styles.commentHeader}>
-                <Image
-                    source={{ uri: comment.author_image || 'https://via.placeholder.com/30' }}
-                    style={styles.commentAuthorImage}
-                />
-                <Text style={[styles.commentAuthorName, themeStyles.text]}>
-                    {comment.username}
-                </Text>
-                <Text style={[styles.commentTimestamp, themeStyles.secondaryText]}>
-                    {new Date(comment.created_at).toLocaleDateString()}
-                    {comment.is_edited && <Text style={styles.editedText}> (edited)</Text>}
-                </Text>
+    <View style={styles.commentWrapper}>
+      <View style={styles.commentContainer}>
+      <TouchableOpacity
+    onPress={() => {
+      if (comment.user_id === currentUser?.id) {
+        navigation.navigate('UserProfile');
+      } else {
+        navigation.navigate('Profile', { userId: comment.user_id });
+      }
+    }}
+  >
+    <Image
+      source={{ uri: comment.profile_image }}
+      style={styles.userAvatar}
+    />
+  </TouchableOpacity>
+  
+  <View style={styles.commentContentWrapper}>
+    <View style={styles.commentHeader}>
+      <TouchableOpacity
+        onPress={() => {
+          if (comment.user_id === currentUser?.id) {
+            navigation.navigate('UserProfile');
+          } else {
+            navigation.navigate('Profile', { userId: comment.user_id });
+          }
+        }}
+      >
+        <Text style={[styles.username, themeStyles.text]}>
+          {comment.username}
+        </Text>
+      </TouchableOpacity>
+            <Text style={styles.timestamp}>
+              {comment.created_at ? new Date(comment.created_at).toLocaleDateString() : ''}
+              {comment.is_edited && ' (edited)'}
+            </Text>
+          </View>
+
+          {isEditing ? (
+            <View style={styles.editContainer}>
+              <TextInput
+                style={[styles.editInput, themeStyles.text]}
+                value={editedContent}
+                onChangeText={setEditedContent}
+                multiline
+              />
+              <View style={styles.actionButtons}>
+                <TouchableOpacity onPress={handleEdit} style={styles.actionButton}>
+                  <Text style={styles.actionButtonText}>Save</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.actionButton}>
+                  <Text style={styles.actionButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
             </View>
+          ) : (
+            <Text style={[styles.commentText, themeStyles.text]}>
+              {comment.content}
+            </Text>
+          )}
 
-            {isEditing ? (
-                <View style={styles.editContainer}>
-                    <TextInput
-                        style={[styles.editInput, themeStyles.text]}
-                        value={editedContent}
-                        onChangeText={setEditedContent}
-                        multiline
-                    />
-                    <View style={styles.editButtons}>
-                        <TouchableOpacity onPress={handleEdit} style={styles.editButton}>
-                            <Text style={styles.editButtonText}>Save</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.cancelButton}>
-                            <Text style={styles.cancelButtonText}>Cancel</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            ) : (
-                <Text style={[styles.commentContent, themeStyles.text]}>
-                    {comment.content}
-                </Text>
+          <View style={styles.actionBar}>
+            {isLoggedIn && (
+              <TouchableOpacity 
+                onPress={() => setShowReplyInput(!showReplyInput)}
+                style={styles.actionButton}
+              >
+                <Text style={styles.actionText}>Reply</Text>
+              </TouchableOpacity>
             )}
+            {isCommentOwner && (
+              <>
+                <TouchableOpacity 
+                  onPress={() => setIsEditing(true)}
+                  style={styles.actionButton}
+                >
+                  <Text style={styles.actionText}>Edit</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={() => onDelete(comment.id)}
+                  style={styles.actionButton}
+                >
+                  <Text style={styles.actionText}>Delete</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
 
-            <View style={styles.commentActions}>
-                {isLoggedIn && level < maxReplyLevel && (
-                    <>
-                        <TouchableOpacity onPress={() => setShowReplyInput(!showReplyInput)}>
-                            <Text style={styles.actionText}>Reply</Text>
-                        </TouchableOpacity>
-                        {isCommentOwner && (
-                            <>
-                                <TouchableOpacity onPress={() => setIsEditing(true)}>
-                                    <Text style={styles.actionText}>Edit</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={() => onDelete(comment.id)}>
-                                    <Text style={styles.actionText}>Delete</Text>
-                                </TouchableOpacity>
-                            </>
-                        )}
-                    </>
-                )}
+          {showReplyInput && (
+            <View style={styles.replyInputContainer}>
+              <TextInput
+                style={[styles.replyInput, themeStyles.text]}
+                value={replyContent}
+                onChangeText={setReplyContent}
+                placeholder="Add a reply..."
+                placeholderTextColor="#666"
+                multiline
+              />
+              <View style={styles.replyButtons}>
+                <TouchableOpacity 
+                  onPress={() => setShowReplyInput(false)}
+                  style={styles.cancelReplyButton}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleReply}
+                  style={[styles.replyButton, !replyContent.trim() && styles.disabledButton]}
+                  disabled={!replyContent.trim()}
+                >
+                  <Text style={styles.replyButtonText}>Reply</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-
-            {showReplyInput && (
-                <View style={styles.replyContainer}>
-                    <TextInput
-                        style={[styles.replyInput, themeStyles.text]}
-                        value={replyContent}
-                        onChangeText={setReplyContent}
-                        placeholder={`Reply to @${comment.username}...`}
-                        placeholderTextColor={themeStyles.secondaryText.color}
-                        multiline
-                    />
-                    <TouchableOpacity
-                        onPress={handleReply}
-                        style={[
-                            styles.replyButton,
-                            !replyContent.trim() && styles.replyButtonDisabled
-                        ]}
-                        disabled={!replyContent.trim()}
-                    >
-                        <Text style={styles.replyButtonText}>Post Reply</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-
-            {comment.replies && comment.replies.length > 0 && (
-                <View style={styles.repliesContainer}>
-                    {comment.replies.map((reply) => (
-                        <Comment
-                            key={reply.id}
-                            comment={reply}
-                            onReply={onReply}
-                            onEdit={onEdit}
-                            onDelete={onDelete}
-                            currentUser={currentUser}
-                            themeStyles={themeStyles}
-                            level={level + 1}
-                        />
-                    ))}
-                </View>
-            )}
+          )}
         </View>
-    </View>
-);
-};
+      </View>
 
+      {level === 0 && comment.replies && comment.replies.length > 0 && (
+         <View style={styles.repliesContainer}>
+          {comment.replies.map((reply) => (
+            <Comment
+              key={reply.id}
+              comment={reply}
+              onReply={onReply}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              currentUser={currentUser}
+              themeStyles={themeStyles}
+              level={1}
+              navigation={navigation} 
+            />
+            
+          ))}
+        </View>
+      )}
+    </View>
+  );
+};
 const QuestionDetailScreen = ({ route, navigation }) => {
   const { questionId } = route.params;
   const { darkMode } = useDarkMode();
@@ -328,42 +344,42 @@ const QuestionDetailScreen = ({ route, navigation }) => {
   
   const handleReplyToComment = async (parentCommentId, content) => {
     if (!currentUser || !currentUser.id) {
-      Alert.alert('Error', 'Please log in to reply');
-      return false;
-    }
-  
-    try {
-      setIsPostingComment(true);
-      const response = await fetch('http://192.168.151.27/TechForum/backend/comments.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'create',
-          userId: currentUser.id,
-          content: content,
-          postId: questionId,
-          parentId: parentCommentId,
-        }),
-      });
-  
-      const data = await response.json();
-      if (data.success) {
-        await fetchComments(); // Refresh comments after successful reply
-        return true;
-      } else {
-        Alert.alert('Error', data.message || 'Failed to post reply');
+        Alert.alert('Error', 'Please log in to reply');
         return false;
-      }
-    } catch (error) {
-      console.error('Error posting reply:', error);
-      Alert.alert('Error', 'Failed to post reply');
-      return false;
-    } finally {
-      setIsPostingComment(false);
     }
-  };
+
+    try {
+        setIsPostingComment(true);
+        const response = await fetch('http://192.168.151.27/TechForum/backend/comments.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'create',
+                userId: currentUser.id,
+                content: content,
+                postId: questionId,
+                parentId: parentCommentId,
+            }),
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            await fetchComments(); // Refresh all comments
+            return true;
+        } else {
+            Alert.alert('Error', data.message || 'Failed to post reply');
+            return false;
+        }
+    } catch (error) {
+        console.error('Error posting reply:', error);
+        Alert.alert('Error', 'Failed to post reply');
+        return false;
+    } finally {
+        setIsPostingComment(false);
+    }
+};
 
   const handleNestedReply = async (parentReplyId) => {
     if (!nestedReplyContent.trim()) {
@@ -479,6 +495,8 @@ const QuestionDetailScreen = ({ route, navigation }) => {
     }
   };
 
+  
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -541,18 +559,32 @@ const QuestionDetailScreen = ({ route, navigation }) => {
             </Text>
 
             {question.image_url && (
-              <Image
-                source={{ uri: question.image_url }}
-                style={styles.questionImage}
-                resizeMode="contain"
-              />
-            )}
+    <Image
+        source={{ 
+            uri: `http://192.168.151.27/TechForum/backend/uploads/${question.image_url}` 
+        }}
+        style={styles.questionImage}
+        resizeMode="contain"
+    />
+)}
 
             <View style={styles.authorInfo}>
-              <Image
-                source={{ uri: question.profile_image || 'https://via.placeholder.com/40' }}
-                style={styles.authorImage}
-              />
+            <TouchableOpacity 
+  onPress={() => {
+    if (question.user_id === currentUser?.id) {
+      navigation.navigate('UserProfile');
+    } else {
+      navigation.navigate('Profile', { userId: question.user_id });
+    }
+  }}
+>
+  <Image
+    source={{ uri: question.profile_image }}
+    style={styles.authorImage}
+  />
+</TouchableOpacity>
+
+
               <Text style={[styles.authorName, themeStyles.secondaryText]}>
                 {question.username}
               </Text>
@@ -621,7 +653,7 @@ const QuestionDetailScreen = ({ route, navigation }) => {
     onDelete={handleDeleteComment}
     currentUser={currentUser}
     themeStyles={themeStyles}
-    // level prop will default to 0
+    navigation={navigation}
   />
 ))}
         </View>
@@ -651,11 +683,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
   },
-  questionCard: {
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
+ 
   questionHeader: {
     marginBottom: 12,
   },
@@ -726,18 +754,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   commentContainer: {
-    padding: 12,
+    padding: 8,
     marginBottom: 12,
     borderRadius: 8,
   },
   commentHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+   
     marginBottom: 8,
   },
   commentAuthorImage: {
-    width: 30,
-    height: 30,
+    width: 20,
+    height: 20,
     borderRadius: 15,
     marginRight: 8,
   },
@@ -965,24 +993,243 @@ const styles = StyleSheet.create({
     color: '#647687',
   },
   commentWrapper: {
-    marginBottom: 12,
-},
-nestedCommentWrapper: {
-    flexDirection: 'row',
-    marginLeft: 16,
-},
-verticalLine: {
-    width: 2,
-    marginRight: 8,
-    marginLeft: 8,
-    borderRadius: 1,
-},
-nestedComment: {
-    flex: 1,
-},
-repliesContainer: {
-    marginTop: 8,
-},
-});
-
+        marginBottom: 12,
+    },
+    replyWrapper: {
+        marginLeft: 10,
+        marginTop: 8,
+        flexDirection: 'row',
+    },
+    replyIndicatorLine: {
+        width: 2,
+        backgroundColor: '#2563eb',
+        marginRight: 8,
+        borderRadius: 1,
+    },
+    commentContentWrapper: {
+        flex: 1,
+        padding: 12,
+        borderRadius: 8,
+    },
+    commentHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginBottom: 8,
+    },
+    commentHeaderText: {
+        flex: 1,
+        marginLeft: 8,
+    },
+    commentAuthorImage: {
+        width: 10,
+        height: 10,
+        borderRadius: 16,
+    },
+    commentAuthorName: {
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    commentTimestamp: {
+        fontSize: 12,
+        marginTop: 2,
+    },
+    commentText: {
+        fontSize: 14,
+        lineHeight: 20,
+        marginBottom: 8,
+    },
+    commentActions: {
+        flexDirection: 'row',
+        gap: 16,
+        marginTop: 4,
+    },
+    actionText: {
+        color: '#2563eb',
+        fontSize: 12,
+        fontWeight: '500',
+    },
+    editContainer: {
+        marginTop: 8,
+    },
+    editInput: {
+        borderWidth: 1,
+        borderColor: '#e1e8ed',
+        borderRadius: 8,
+        padding: 8,
+        marginBottom: 8,
+        minHeight: 60,
+    },
+    editButtons: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    editButton: {
+        backgroundColor: '#2563eb',
+        padding: 8,
+        borderRadius: 8,
+        alignItems: 'center',
+        flex: 1,
+    },
+    editButtonText: {
+        color: '#fff',
+        fontWeight: '500',
+    },
+    cancelButton: {
+        backgroundColor: '#ef4444',
+        padding: 8,
+        borderRadius: 8,
+        alignItems: 'center',
+        flex: 1,
+    },
+    cancelButtonText: {
+        color: '#fff',
+        fontWeight: '500',
+    },
+    replyInputContainer: {
+        marginTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: '#e1e8ed',
+        paddingTop: 8,
+    },
+    replyInput: {
+        borderWidth: 1,
+        borderColor: '#e1e8ed',
+        borderRadius: 8,
+        padding: 8,
+        marginBottom: 8,
+        minHeight: 60,
+    },
+    replyButton: {
+        backgroundColor: '#2563eb',
+        padding: 8,
+        borderRadius: 8,
+        alignItems: 'center',
+        alignSelf: 'flex-end',
+        paddingHorizontal: 16,
+    },
+    replyButtonDisabled: {
+        opacity: 0.5,
+    },
+    replyButtonText: {
+        color: '#fff',
+        fontWeight: '500',
+    },
+    editedText: {
+        fontSize: 12,
+        fontStyle: 'italic',
+        color: '#647687',
+    },
+    commentWrapper: {
+      marginBottom: 16,
+    },
+    commentContainer: {
+      flexDirection: 'row',
+      paddingHorizontal: 10,
+    },
+    userAvatar: {
+      width: 25,
+      height: 25,
+      borderRadius: 20,
+      marginRight: 16,
+    },
+    commentContentWrapper: {
+      flex: 1,
+    },
+    commentHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    username: {
+      fontWeight: '500',
+      marginRight: 8,
+      fontSize: 13,
+    },
+    timestamp: {
+      color: '#666',
+      fontSize: 12,
+    },
+    commentText: {
+      fontSize: 14,
+      lineHeight: 20,
+      marginBottom: 8,
+    },
+    actionBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+      marginTop: 4,
+    },
+    actionButton: {
+      marginRight: 16,
+    },
+    actionText: {
+      color: '#666',
+      fontSize: 13,
+      fontWeight: '500',
+    },
+    editContainer: {
+      marginTop: 8,
+      marginBottom: 12,
+    },
+    editInput: {
+      borderWidth: 1,
+      borderColor: '#e0e0e0',
+      borderRadius: 8,
+      padding: 8,
+      marginBottom: 8,
+      minHeight: 60,
+      fontSize: 14,
+    },
+    actionButtons: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    replyInputContainer: {
+      marginTop: 8,
+      marginBottom: 12,
+    },
+    replyInput: {
+      borderWidth: 1,
+      borderColor: '#e0e0e0',
+      borderRadius: 8,
+      padding: 8,
+      marginBottom: 8,
+      minHeight: 60,
+      fontSize: 14,
+    },
+    replyButtons: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: 8,
+    },
+    replyButton: {
+      backgroundColor: '#065fd4',
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 18,
+    },
+    cancelReplyButton: {
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 18,
+    },
+    replyButtonText: {
+      color: '#fff',
+      fontWeight: '500',
+      fontSize: 14,
+    },
+    cancelButtonText: {
+      color: '#666',
+      fontWeight: '500',
+      fontSize: 14,
+    },
+    disabledButton: {
+      opacity: 0.5,
+    },
+    repliesContainer: {
+      marginLeft: 56,
+      marginTop: 8,
+    }
+  });
 export default QuestionDetailScreen;

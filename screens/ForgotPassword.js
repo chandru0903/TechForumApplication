@@ -5,7 +5,6 @@ import {
   TextInput, 
   TouchableOpacity, 
   StyleSheet, 
-  Alert, 
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator 
@@ -14,6 +13,7 @@ import {
 const ForgotPassword = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
 
   const validateGmail = (email) => {
     const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
@@ -21,22 +21,24 @@ const ForgotPassword = ({ navigation }) => {
   };
 
   const handleSendEmail = async () => {
+    // Reset previous errors
+    setEmailError('');
+
     const trimmedEmail = email.trim();
     
     if (trimmedEmail === '') {
-      Alert.alert('Error', 'Please enter your email.');
+      setEmailError('Email is required');
       return;
     }
   
     if (!validateGmail(trimmedEmail)) {
-      Alert.alert('Error', 'Please enter a valid Gmail address.');
+      setEmailError('Please enter a valid Gmail address');
       return;
     }
   
     setIsLoading(true);
     
     try {
-      // Create FormData instead of JSON
       const formData = new FormData();
       formData.append('email', trimmedEmail);
 
@@ -48,7 +50,6 @@ const ForgotPassword = ({ navigation }) => {
         body: formData
       });
       
-      // Add this for debugging
       const responseText = await response.text();
       console.log('Raw response:', responseText);
       
@@ -57,21 +58,22 @@ const ForgotPassword = ({ navigation }) => {
         result = JSON.parse(responseText);
       } catch (e) {
         console.error('Parse error:', responseText);
-        throw new Error('Invalid server response');
+        setEmailError('Invalid server response');
+        return;
       }
   
       if (result.status === 'success') {
         navigation.navigate('EmailVerification', { email: trimmedEmail });
       } else {
-        Alert.alert('Error', result.message || 'Failed to send OTP.');
+        setEmailError(result.message || 'Failed to send OTP');
       }
     } catch (error) {
       console.error('Send OTP error:', error);
-      Alert.alert('Error', 'Network error. Please check your connection and try again.');
+      setEmailError('Network error. Please try again.');
     } finally {
       setIsLoading(false);
     }
-};
+  };
   
   return (
     <KeyboardAvoidingView 
@@ -82,17 +84,28 @@ const ForgotPassword = ({ navigation }) => {
         <Text style={styles.header}>Forgot your password?</Text>
         <Text style={styles.subHeader}>Don't worry, we got you!</Text>
         
-        <TextInput
-          style={styles.input}
-          placeholder="Enter your Gmail"
-          placeholderTextColor="#7a7a7a"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!isLoading}
-        />
+        <View>
+          <TextInput
+            style={[
+              styles.input, 
+              emailError && styles.inputError
+            ]}
+            placeholder="Enter your Gmail"
+            placeholderTextColor="#7a7a7a"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={(text) => {
+              setEmail(text);
+              setEmailError(''); // Clear error when user starts typing
+            }}
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!isLoading}
+          />
+          {emailError ? (
+            <Text style={styles.errorText}>{emailError}</Text>
+          ) : null}
+        </View>
         
         <Text style={styles.note}>
           *If an account is associated with this email, you will receive a recovery code.
@@ -167,6 +180,14 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  inputError: {
+    borderColor: '#FF4444', // Red border for error state
+  },
+  errorText: {
+    color: '#FF4444', // Red text for error message
+    fontSize: 12,
+    marginTop: 5,
   },
 });
 

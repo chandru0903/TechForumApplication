@@ -39,35 +39,35 @@ const QNA_Card = ({
 const username = item.username || 'Anonymous';
 const profilePic = item.profile_image ;
 
-  return (
-    <TouchableOpacity 
-      style={[
-        styles.card,
-        { backgroundColor: darkMode ? '#2C2C2C' : '#FFFFFF' }
-      ]}
-      onPress={onPress}
-    >
-      <View style={styles.cardContent}>
-        {/* Left side voting section */}
-        <View style={styles.votingSection}>
-          <TouchableOpacity onPress={handleUpvote} style={styles.voteButton}>
-            <MaterialIcons 
-              name="arrow-upward" 
-              size={24} 
-              color={darkMode ? '#FFFFFF' : '#666666'} 
-            />
-          </TouchableOpacity>
-          <Text style={[styles.voteCount, { color: darkMode ? '#FFFFFF' : '#000000' }]}>
-            {item.votes || 0}
-          </Text>
-          <TouchableOpacity onPress={handleDownvote} style={styles.voteButton}>
-            <MaterialIcons 
-              name="arrow-downward" 
-              size={24} 
-              color={darkMode ? '#FFFFFF' : '#666666'} 
-            />
-          </TouchableOpacity>
-        </View>
+return (
+  <TouchableOpacity 
+    style={[
+      styles.card,
+      { backgroundColor: darkMode ? '#2C2C2C' : '#FFFFFF' }
+    ]}
+    onPress={onPress}
+  >
+    <View style={styles.cardContent}>
+      {/* Left side voting section */}
+<View style={styles.votingSection}>
+  <TouchableOpacity onPress={handleUpvote} style={styles.voteButton}>
+    <MaterialIcons 
+      name="arrow-upward" 
+      size={24} 
+      color={item.user_reaction === 'like' ? '#6B4EFF' : (darkMode ? '#FFFFFF' : '#666666')} 
+    />
+  </TouchableOpacity>
+  <Text style={[styles.voteCount, { color: darkMode ? '#FFFFFF' : '#000000' }]}>
+    {(item.likes_count || 0) - (item.dislikes_count || 0)}
+  </Text>
+  <TouchableOpacity onPress={handleDownvote} style={styles.voteButton}>
+    <MaterialIcons 
+      name="arrow-downward" 
+      size={24} 
+      color={item.user_reaction === 'dislike' ? '#FF4B4B' : (darkMode ? '#FFFFFF' : '#666666')} 
+    />
+  </TouchableOpacity>
+</View>
 
         {/* Right side content */}
         <View style={styles.mainContent}>

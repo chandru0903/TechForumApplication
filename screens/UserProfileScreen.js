@@ -11,11 +11,9 @@ import {
   RefreshControl,
   ActivityIndicator,
   Animated,
-  Modal,
-  TextInput,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { format } from 'timeago.js';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDarkMode } from './Context/DarkMode';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -261,13 +259,46 @@ const UserProfileScreen = ({ navigation }) => {
   
       const data = await response.json();
       if (data.success) {
-        fetchUserPosts();
+        setQuestions(prevQuestions => {
+          return prevQuestions.map(question => {
+            if (question.id === postId) {
+              const hadUpvote = question.user_reaction === 'like';
+              const hadDownvote = question.user_reaction === 'dislike';   
+              let likes = question.likes_count || 0;
+              let dislikes = question.dislikes_count || 0;
+              let newUserReaction = null;
+              if ((voteType === 'upvote' && hadUpvote) || 
+                  (voteType === 'downvote' && hadDownvote)) {
+                if (hadUpvote) likes--;
+                if (hadDownvote) dislikes--;
+                newUserReaction = null;
+              }   
+              else {
+                if (voteType === 'upvote') {
+                  likes++;
+                  if (hadDownvote) dislikes--;
+                  newUserReaction = 'like';
+                } else {
+                  dislikes++;
+                  if (hadUpvote) likes--;
+                  newUserReaction = 'dislike';
+                }
+              }
+              return {
+                ...question,
+                likes_count: likes,
+                dislikes_count: dislikes,
+                user_reaction: newUserReaction
+              };
+            }
+            return question;
+          });
+        });
       }
     } catch (error) {
       console.error('Error handling vote:', error);
     }
   };
-
   const fetchUserPosts = async () => {
     try {
       const userId = await AsyncStorage.getItem('userId');

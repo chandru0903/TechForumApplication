@@ -98,18 +98,28 @@ const ProfileScreen = ({ route, navigation }) => {
       const questionsResponse = await fetch(
         `${apiUrl}/posts_view.php?user_id=${userId}&post_type=qa`
       );
-
+  
       const postsData = await postsResponse.json();
       const questionsData = await questionsResponse.json();
-
+  
       console.log('Posts response:', postsData);
       console.log('Questions response:', questionsData);
-
+  
       if (postsData.success) {
-        setPosts(postsData.data || []);
+        // Ensure comments_count is properly converted to a number
+        const processedPosts = postsData.data.map(post => ({
+          ...post,
+          comments_count: post.comments_count ? parseInt(post.comments_count, 10) : 0
+        }));
+        setPosts(processedPosts);
       }
       if (questionsData.success) {
-        setQuestions(questionsData.data || []);
+        // Ensure comments_count is properly converted to a number
+        const processedQuestions = questionsData.data.map(question => ({
+          ...question,
+          comments_count: question.comments_count ? parseInt(question.comments_count, 10) : 0
+        }));
+        setQuestions(processedQuestions);
       }
     } catch (error) {
       console.error('Error fetching user posts:', error);
@@ -130,8 +140,9 @@ const ProfileScreen = ({ route, navigation }) => {
   const handleLike = async (postId) => {
     try {
       const authToken = await AsyncStorage.getItem('authToken');
-      if (!authToken) return;
-
+      const userId = await AsyncStorage.getItem('userId'); // Add this line to get userId
+      if (!authToken || !userId) return;
+  
       const response = await fetch(`http://192.168.151.27/TechForum/backend/post_reaction.php`, {
         method: 'POST',
         headers: {
@@ -140,24 +151,31 @@ const ProfileScreen = ({ route, navigation }) => {
         },
         body: JSON.stringify({
           post_id: postId,
+          user_id: parseInt(userId), // Add user_id to the request
           reaction_type: 'like'
         }),
       });
-
+  
       if (response.ok) {
+        const result = await response.json();
+        console.log('Like response:', result); // Add this for debugging
         fetchUserPosts();
+      } else {
+        const errorData = await response.json();
+        console.error('Server error:', errorData);
       }
     } catch (error) {
       console.error('Error handling like:', error);
     }
   };
-
+  
   const handleDislike = async (postId) => {
     try {
       const authToken = await AsyncStorage.getItem('authToken');
-      if (!authToken) return;
-
-      const response = await fetch(`${apiUrl}/post_reaction.php`, {
+      const userId = await AsyncStorage.getItem('userId'); // Add this line to get userId
+      if (!authToken || !userId) return;
+  
+      const response = await fetch(`http://192.168.151.27/TechForum/backend/post_reaction.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -165,12 +183,18 @@ const ProfileScreen = ({ route, navigation }) => {
         },
         body: JSON.stringify({
           post_id: postId,
+          user_id: parseInt(userId), // Add user_id to the request
           reaction_type: 'dislike'
         }),
       });
-
+  
       if (response.ok) {
+        const result = await response.json();
+        console.log('Dislike response:', result); // Add this for debugging
         fetchUserPosts();
+      } else {
+        const errorData = await response.json();
+        console.error('Server error:', errorData);
       }
     } catch (error) {
       console.error('Error handling dislike:', error);
@@ -213,28 +237,68 @@ const ProfileScreen = ({ route, navigation }) => {
     secondaryTextColor: '#CCCCCC',
   };
 
-  const handleQnaVote = async (questionId, voteType) => {
+  const handleVote = async (postId, voteType) => {
     try {
-      const authToken = await AsyncStorage.getItem('authToken');
-      if (!authToken) return;
-
-      const response = await fetch(`${apiUrl}/qa_vote.php`, {
+      if (!userId) return;
+      
+      const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php?action=react', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
         },
         body: JSON.stringify({
-          question_id: questionId,
-          vote_type: voteType
+          post_id: postId,
+          user_id: userId,
+          reaction_type: voteType === 'upvote' ? 'like' : 'dislike'
         }),
       });
-
-      if (response.ok) {
-        fetchUserPosts(); // Refresh the data
+  
+      const data = await response.json();
+      if (data.success) {
+        setQuestions(prevQuestions => {
+          return prevQuestions.map(question => {
+            if (question.id === postId) {
+              // Check if user already had a vote
+              const hadUpvote = question.user_reaction === 'like';
+              const hadDownvote = question.user_reaction === 'dislike';
+              
+              let likes = question.likes_count || 0;
+              let dislikes = question.dislikes_count || 0;
+              let newUserReaction = null;
+  
+              // Remove existing vote if clicking same button
+              if ((voteType === 'upvote' && hadUpvote) || 
+                  (voteType === 'downvote' && hadDownvote)) {
+                if (hadUpvote) likes--;
+                if (hadDownvote) dislikes--;
+                newUserReaction = null;
+              } 
+              // Switch vote if clicking different button
+              else {
+                if (voteType === 'upvote') {
+                  likes++;
+                  if (hadDownvote) dislikes--;
+                  newUserReaction = 'like';
+                } else {
+                  dislikes++;
+                  if (hadUpvote) likes--;
+                  newUserReaction = 'dislike';
+                }
+              }
+  
+              return {
+                ...question,
+                likes_count: likes,
+                dislikes_count: dislikes,
+                user_reaction: newUserReaction
+              };
+            }
+            return question;
+          });
+        });
       }
     } catch (error) {
-      console.error('Error handling QNA vote:', error);
+      console.error('Error handling vote:', error);
     }
   };
   const renderContent = () => (
@@ -278,21 +342,15 @@ const ProfileScreen = ({ route, navigation }) => {
             questions.map(question => (
               <QNA_Card
                 key={question.id}
-                item={{
-                  id: question.id,
-                  title: question.title || question.content,
-                  description: question.description || question.content,
-                  votes: question.votes || 0,
-                  views: question.views || 0,
-                  created_at: question.created_at,
-                  username: question.username,
-                  profile_image: question.profile_image
-                }}
+                item={question}
                 darkMode={darkMode}
                 onPress={() => navigation.navigate('QuestionDetail', { questionId: question.id })}
-                onVote={handleQnaVote}
-                currentUser={currentUserId}
-                themeStyles={darkMode ? darkThemeStyles : lightThemeStyles}
+                onVote={handleVote}
+                currentUser={userId}
+                themeStyles={{
+                  backgroundColor: darkMode ? '#333' : '#f9f9f9',
+                  textColor: darkMode ? '#fff' : '#000'
+                }}
               />
             ))
           ) : (
@@ -442,7 +500,7 @@ const ProfileScreen = ({ route, navigation }) => {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     Promise.all([
-      fetchUserProfile(),
+      
       fetchUserPosts()
     ]).finally(() => {
       setRefreshing(false);

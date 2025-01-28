@@ -85,10 +85,7 @@ const EmailVerification = ({ navigation, route }) => {
           const loginResult = await login(email, password);
           console.log('Login result received:', loginResult);
           
-          if (isLogin) {
-            console.log('Attempting login with:', { email, password });
-            const loginResult = await login(email, password);
-            console.log('Login result received:', loginResult);
+         
             
             if (loginResult?.success) {
               try {
@@ -106,7 +103,7 @@ const EmailVerification = ({ navigation, route }) => {
               console.log('Login was not successful:', loginResult);
               Alert.alert('Error', loginResult?.message || 'Login failed. Please try again.');
             }
-          }
+          
         } else if (route.params.isRegistration) {
           // Handle registration after OTP verification
           const registerFormData = new FormData();

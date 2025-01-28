@@ -2,22 +2,16 @@ import React, { useState, useEffect,useCallback } from 'react';
 import {
   View, Text, TextInput, ScrollView, Image, StyleSheet, 
   TouchableOpacity, SafeAreaView, Dimensions, Modal,
-  ActivityIndicator, Animated, RefreshControl
+  ActivityIndicator, Animated, RefreshControl, Alert
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import axios from 'axios';
 import { useDarkMode } from './Context/DarkMode';
-import { useAuth } from './Context/Authentication';
 import { useFocusEffect } from '@react-navigation/native';
+import PostCard from './components/PostCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
-
-const api = axios.create({
-  baseURL: 'https://newsdata.io/api/1/news?apikey=pub_6352813b93c086b17c8e10b8cf1924b21507e&q=teachnology',
-  timeout: 10000,
-  headers: { 'Content-Type': 'application/json' }
-});
 
 const OverlayMenu = ({ isVisible, onClose, darkMode, navigation }) => {
   const slideAnimation = React.useRef(new Animated.Value(-width)).current;
@@ -27,7 +21,6 @@ const OverlayMenu = ({ isVisible, onClose, darkMode, navigation }) => {
     { icon: 'group', label: 'Community', route: 'Communities' },
     { icon: 'settings', label: 'Settings', route: 'Settings' },
     { icon: 'notifications', label: 'Notifications', route: 'Notifications' },
-    { icon: 'bookmark', label: 'Saved', route: 'Saved' },
   
   ];
   useEffect(() => {
@@ -75,46 +68,102 @@ const OverlayMenu = ({ isVisible, onClose, darkMode, navigation }) => {
 const HomeScreen = ({ navigation }) => {
   const { darkMode } = useDarkMode();
   const [menuVisible, setMenuVisible] = useState(false);
-  
-  const [trendingNews, setTrendingNews] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [isCommentsVisible, setIsCommentsVisible] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState(null);
+  const [trendingNews, setTrendingNews] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  
   const [profileData, setProfileData] = useState(null);
   const [searchInput, setSearchInput] = useState('');
    const [refreshing, setRefreshing] = useState(false);
+   const [posts, setPosts] = useState([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+  const [postsError, setPostsError] = useState(null);
  
 
-  
-  const handleSearchPress = (text) => {
-    if (text === '@') {
-      navigation.navigate('Search', { initialChar: '@' });
+  const fetchComments = async (postId) => {
+    try {
+      const response = await fetch(`http://192.168.151.27/TechForum/backend/comments.php?post_id=${postId}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setComments(data.comments);
+      } else {
+        console.error('Failed to fetch comments');
+        Alert.alert('Error', 'Could not load comments');
+      }
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+      Alert.alert('Error', 'Network error while fetching comments');
     }
   };
 
-  const fetchProfileData = async () => {
+  // Function to post a new comment
+  const postComment = async () => {
+    if (!newComment.trim()) {
+      Alert.alert('Error', 'Comment cannot be empty');
+      return;
+    }
+
     try {
       const userId = await AsyncStorage.getItem('userId');
-      if (!userId) {
-        return;
-      }
       
-      const response = await fetch('http://192.168.151.27/TechForum/backend/profile.php?id=' + userId);
+      const response = await fetch('http://192.168.151.27/TechForum/backend/comments.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: selectedPostId,
+          user_id: userId,
+          comment_text: newComment.trim(),
+          comment_type: 'comment'
+        }),
+      });
       
-
       const data = await response.json();
       
-      if (data.success && data.data) {  // Updated to match PHP response structure
+      if (data.success) {
+        // Refresh comments after posting
+        await fetchComments(selectedPostId);
+        setNewComment('');
+      } else {
+        Alert.alert('Error', data.message || 'Could not post comment');
+      }
+    } catch (error) {
+      console.error('Error posting comment:', error);
+      Alert.alert('Error', 'Could not post comment');
+    }
+  };
+
+  const handleSearchPress = (text) => {
+  
+      navigation.navigate('Search', { initialChar: '@' });
+      setSearchInput(''); // Clear the text input
+  
+   };
+
+   const fetchProfileData = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) return;
+
+      const response = await fetch(`http://192.168.151.27/TechForum/backend/profile.php?id=${userId}`);
+      const data = await response.json();
+      
+      if (data.success && data.data) {
         setProfileData(data.data);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
-    } finally {
-      setLoading(false);
+      Alert.alert('Error', 'Could not load profile data');
     }
   };
+
 
     useEffect(() => {
         fetchProfileData();
@@ -128,24 +177,10 @@ const HomeScreen = ({ navigation }) => {
         title: 'Welcome 👋',
         description: "Welcome to the TechForum community—we're glad to get you as part of us. This is a space to build community with other enthusiastic and knowledgeable...",
         created_at: '25d',
-        likes_count: 0,
-        dislikes_count: 0,
-        comments_count: 0,
+        
         isAdmin: true
       };
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchProfileData();
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 2000);
-  }, []);
-  useFocusEffect(
-      useCallback(() => {
-        fetchProfileData(); // Call the API when the screen is focused
-      }, [])
-    );
   
     // Initial fetch when the screen loads for the first time
     useEffect(() => {
@@ -161,36 +196,140 @@ const HomeScreen = ({ navigation }) => {
     { id: 4, name: 'GamesToDate', members: '35,600', icon: require('./assets/GamesToDate.png') }
   ]);
 
-  const fetchTrendingPosts = async () => {
+  const fetchPosts = async () => {
     try {
       setIsLoading(true);
-      setError(null);
-      const response = await api.get('');
-      if (response?.data?.results?.length > 0) {
-        setTrendingNews(response.data.results[0]);
+      const userId = await AsyncStorage.getItem('userId');
+      const response = await fetch(`http://192.168.151.27/TechForum/backend/home.php?user_id=${userId}&post_type=post`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setPosts(data.data);
       } else {
-        setError('No posts available');
+        Alert.alert('Error', 'Could not fetch posts');
       }
-    } catch (err) {
-      setError('Failed to fetch posts');
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      Alert.alert('Error', 'Network error while fetching posts');
     } finally {
       setIsLoading(false);
-      setIsRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    fetchTrendingPosts();
+  const handleLike = async (postId, reactionDetails) => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      
+      const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          post_id: postId,
+          user_id: userId,
+          reaction_type: reactionDetails.newReaction || null
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setPosts(prevPosts => 
+          prevPosts.map(post => 
+            post.id === postId 
+              ? {
+                  ...post, 
+                  user_reaction: reactionDetails.newReaction,
+                  likes_count: post.likes_count + (reactionDetails.likesDelta || 0),
+                  dislikes_count: post.dislikes_count + (reactionDetails.dislikesDelta || 0)
+                }
+              : post
+          )
+        );
+      } else {
+        Alert.alert('Error', data.message || 'Could not process reaction');
+      }
+    } catch (error) {
+      console.error('Error handling like:', error);
+      Alert.alert('Error', 'Network error processing like');
+    }
+  };
+
+  // Handle Dislike Reaction
+  const handleDislike = async (postId, reactionDetails) => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      
+      const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          post_id: postId,
+          user_id: userId,
+          reaction_type: reactionDetails.newReaction || null
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setPosts(prevPosts => 
+          prevPosts.map(post => 
+            post.id === postId 
+              ? {
+                  ...post, 
+                  user_reaction: reactionDetails.newReaction,
+                  dislikes_count: post.dislikes_count + (reactionDetails.dislikesDelta || 0),
+                  likes_count: post.likes_count + (reactionDetails.likesDelta || 0)
+                }
+              : post
+          )
+        );
+      } else {
+        Alert.alert('Error', data.message || 'Could not process reaction');
+      }
+    } catch (error) {
+      console.error('Error handling dislike:', error);
+      Alert.alert('Error', 'Network error processing dislike');
+    }
+  };
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    Promise.all([fetchProfileData(), fetchPosts()])
+      .finally(() => setRefreshing(false));
   }, []);
 
-  const handleAddComment = () => {
-    if (newComment.trim()) {
-      setComments([...comments, newComment]);
-      setNewComment('');
+  // Lifecycle Effects
+  useEffect(() => {
+    fetchProfileData();
+    fetchPosts();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfileData();
+      fetchPosts();
+    }, [])
+  );
+
+  const renderPosts = () => {
+    if (isLoading) {
+      return <ActivityIndicator size="large" color="#6C5CE7" />;
     }
+
+    return posts.map((post) => (
+      <PostCard
+        key={post.id}
+        post={post}
+        darkMode={darkMode}
+        userId={profileData?.id}
+        onLike={handleLike}
+        onDislike={handleDislike}
+        onRefresh={fetchPosts}
+        navigation={navigation}
+      />
+    ));
   };
 
-  
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: darkMode ? '#121212' : '#f5f5f5' }]}>
@@ -236,7 +375,7 @@ const HomeScreen = ({ navigation }) => {
         ]}
         onPress={() => {
           // Allow normal search navigation if no @ is pressed
-          navigation.navigate('Search', { initialChar: '' });
+          navigation.navigate('Search', { initialChar: '@' });
         }}
       >
         <MaterialIcons
@@ -244,18 +383,20 @@ const HomeScreen = ({ navigation }) => {
           size={20}
           color={darkMode ? '#fff' : '#666'}
         />
+        
         <TextInput
-          style={[
-            styles.searchInput,
-            {
-              color: darkMode ? '#888' : '#666',
-            },
-          ]}
-          placeholder="Search users..."
-          placeholderTextColor={darkMode ? '#888' : '#666'}
-          onChangeText={handleSearchPress}
-          value={searchInput}
-        />
+  style={[
+    styles.searchInput,
+    {
+      color: darkMode ? '#888' : '#666',
+    },
+  ]}
+  placeholder="Search users..."
+  placeholderTextColor={darkMode ? '#888' : '#666'}
+  onChangeText={handleSearchPress}
+  value={searchInput}
+/>
+
       </TouchableOpacity>
 
 
@@ -326,12 +467,11 @@ const HomeScreen = ({ navigation }) => {
   >
     <View style={styles.postHeader}>
       <View style={styles.postAuthor}>
-        <TouchableOpacity onPress={() => navigation.navigate('Profile', { userId: user.id }) }>
           <Image
             source={require('./assets/Admin.png')}
             style={styles.authorAvatar}
           />
-        </TouchableOpacity>
+        
         <View>
           <Text
             style={[
@@ -351,9 +491,6 @@ const HomeScreen = ({ navigation }) => {
           </Text>
         </View>
       </View>
-      <TouchableOpacity>
-        <MaterialIcons name="bookmark" size={20} color={darkMode ? '#ccc' : '#666'} />
-      </TouchableOpacity>
     </View>
     <Text
       style={[
@@ -373,131 +510,16 @@ const HomeScreen = ({ navigation }) => {
       us. This is a space to build community with other enthusiastic and
       knowledgeable...
     </Text>
-    <View style={styles.postActions}>
-      <TouchableOpacity
-        style={[
-          styles.actionButton,
-          welcomePost.isLiked && styles.actionButtonActive,
-        ]}
-        onPress={() =>
-          setWelcomePost((prev) => ({
-            ...prev,
-            isLiked: !prev.isLiked,
-            likes: prev.isLiked ? prev.likes - 1 : prev.likes + 1,
-          }))
-        }
-      >
-        <MaterialIcons
-          name="thumb-up"
-          size={16}
-          color={welcomePost.isLiked ? '#4da6ff' : darkMode ? '#ccc' : '#666'}
-        />
-        <Text
-          style={[
-            styles.actionText,
-            welcomePost.isLiked && styles.actionTextActive,
-            { color: darkMode ? '#ccc' : '#666' },
-          ]}
-        >
-          {welcomePost.likes}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.actionButton}
-        onPress={() => setIsCommentsVisible(true)}
-      >
-        <MaterialIcons name="comment" size={16} color={darkMode ? '#ccc' : '#666'} />
-        <Text
-          style={[
-            styles.actionText,
-            { color: darkMode ? '#ccc' : '#666' },
-          ]}
-        >
-          {welcomePost.comments}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[
-          styles.actionButton,
-          welcomePost.isDisliked && styles.actionButtonActive,
-        ]}
-        onPress={() =>
-          setWelcomePost((prev) => ({
-            ...prev,
-            isDisliked: !prev.isDisliked,
-            dislikes: prev.isDisliked
-              ? prev.dislikes - 1
-              : prev.dislikes + 1,
-          }))
-        }
-      >
-        <MaterialIcons
-          name="thumb-down"
-          size={16}
-          color={welcomePost.isDisliked ? '#4da6ff' : darkMode ? '#ccc' : '#666'}
-        />
-        <Text
-          style={[
-            styles.actionText,
-            welcomePost.isDisliked && styles.actionTextActive,
-            { color: darkMode ? '#ccc' : '#666' },
-          ]}
-        >
-          {welcomePost.dislikes}
-        </Text>
-      </TouchableOpacity>
-    </View>
   </View>
 </View>
 
         {/* Today's Trending */}
+        {/* Posts Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Today's Trending</Text>
-          {isLoading ? (
-            <ActivityIndicator size="large" color="#007AFF" />
-          ) : error ? (
-            <Text style={styles.errorText}>{error}</Text>
-          ) : trendingNews ? (
-            <View style={styles.postCard}>
-              <View style={styles.postHeader}>
-                <View style={styles.postAuthor}>
-                  <Image
-                    source={{ uri: trendingNews.image_url || 'https://via.placeholder.com/40' }}
-                    style={styles.trendingAuthorAvatar}
-                  />
-                  <View>
-                    <Text style={styles.authorName}>{trendingNews.source_id}</Text>
-                    <Text style={styles.postTime}>{new Date(trendingNews.pubDate).toLocaleDateString()}</Text>
-                  </View>
-                </View>
-                <TouchableOpacity>
-                  <MaterialIcons name="bookmark" size={20} color="#666" />
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.postTitle}>{trendingNews.title}</Text>
-              <Text style={styles.postContent} numberOfLines={3}>
-                {trendingNews.description}
-              </Text>
-              <View style={styles.postActions}>
-                <TouchableOpacity style={styles.actionButton}>
-                  <MaterialIcons name="thumb-up" size={16} color="#666" />
-                  <Text style={styles.actionText}>Like</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton}>
-                  <MaterialIcons name="comment" size={16} color="#666" />
-                  <Text style={styles.actionText}>Comment</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton}>
-                  <MaterialIcons name="share" size={16} color="#666" />
-                  <Text style={styles.actionText}>Share</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <Text style={styles.noNewsText}>No trending news available at the moment.</Text>
-          )}
+          <Text style={[styles.sectionTitle, { color: darkMode ? '#fff' : '#000' }]}>
+            Recent Posts
+          </Text>
+          {renderPosts()}
         </View>
       </ScrollView>
 
@@ -510,102 +532,124 @@ const HomeScreen = ({ navigation }) => {
       />
 
 <Modal
-  animationType="slide"
-  transparent={true}
-  visible={isCommentsVisible}
-  onRequestClose={() => setIsCommentsVisible(false)}
->
-  <View
-    style={[
-      styles.modalContainer,
-      { backgroundColor: darkMode ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.5)' },
-    ]}
-  >
-    <View
-      style={[
-        styles.modalContent,
-        { backgroundColor: darkMode ? '#1a1a1a' : '#fff' },
-      ]}
+      animationType="slide"
+      transparent={true}
+      visible={isCommentsVisible}
+      onRequestClose={() => setIsCommentsVisible(false)}
     >
-      <View style={styles.modalHeader}>
-        <Text
-          style={[
-            styles.modalTitle,
-            { color: darkMode ? '#fff' : '#000' },
-          ]}
-        >
-          Comments
-        </Text>
-        <TouchableOpacity onPress={() => setIsCommentsVisible(false)}>
-          <MaterialIcons name="close" size={24} color={darkMode ? '#fff' : '#000'} />
-        </TouchableOpacity>
-      </View>
-      <ScrollView style={styles.commentsList}>
-        {comments.map((comment, index) => (
-          <View
-            key={index}
-            style={[
-              styles.commentItem,
-              { borderBottomColor: darkMode ? '#333' : '#ccc' },
-            ]}
-          >
-            <View style={styles.commentHeader}>
-              <Image
-                source={{ uri: 'https://via.placeholder.com/30' }}
-                style={styles.commentAuthorAvatar}
-              />
-              <Text
-                style={[
-                  styles.commentAuthorName,
-                  { color: darkMode ? '#fff' : '#000' },
-                ]}
-              >
-                User {index + 1}
-              </Text>
-            </View>
-            <Text
-              style={[
-                styles.commentText,
-                { color: darkMode ? '#ccc' : '#333' },
-              ]}
-            >
-              {comment}
-            </Text>
-            <Text
-              style={[
-                styles.commentTime,
-                { color: darkMode ? '#666' : '#999' },
-              ]}
-            >
-              {new Date().toLocaleDateString()}
-            </Text>
-          </View>
-        ))}
-      </ScrollView>
       <View
         style={[
-          styles.commentInputContainer,
-          { backgroundColor: darkMode ? '#2a2a2a' : '#f7f7f7' },
+          styles.modalContainer,
+          { backgroundColor: darkMode ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.5)' },
         ]}
       >
-        <TextInput
+        <View
           style={[
-            styles.commentInput,
-            { color: darkMode ? '#fff' : '#000' },
+            styles.modalContent,
+            { backgroundColor: darkMode ? '#1a1a1a' : '#fff' },
           ]}
-          placeholder="Write a comment..."
-          placeholderTextColor={darkMode ? '#777' : '#666'}
-          value={newComment}
-          onChangeText={setNewComment}
-          multiline
-        />
-        <TouchableOpacity style={styles.sendButton} onPress={handleAddComment}>
-          <MaterialIcons name="send" size={24} color={darkMode ? '#4da6ff' : '#007AFF'} />
-        </TouchableOpacity>
+        >
+          <View style={styles.modalHeader}>
+            <Text
+              style={[
+                styles.modalTitle,
+                { color: darkMode ? '#fff' : '#000' },
+              ]}
+            >
+              Comments
+            </Text>
+            <TouchableOpacity onPress={() => setIsCommentsVisible(false)}>
+              <MaterialIcons name="close" size={24} color={darkMode ? '#fff' : '#000'} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.commentsList}>
+            {comments.length > 0 ? (
+              comments.map((comment) => (
+                <View
+                  key={comment.id}
+                  style={[
+                    styles.commentItem,
+                    { borderBottomColor: darkMode ? '#333' : '#ccc' },
+                  ]}
+                >
+                  <View style={styles.commentHeader}>
+                    <Image
+                      source={
+                        comment.profile_image 
+                          ? { uri: comment.profile_image }
+                          : require('./assets/Profile.png')
+                      }
+                      style={styles.commentAuthorAvatar}
+                    />
+                    <Text
+                      style={[
+                        styles.commentAuthorName,
+                        { color: darkMode ? '#fff' : '#000' },
+                      ]}
+                    >
+                      {comment.username}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.commentText,
+                      { color: darkMode ? '#ccc' : '#333' },
+                    ]}
+                  >
+                    {comment.comment_text}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.commentTime,
+                      { color: darkMode ? '#666' : '#999' },
+                    ]}
+                  >
+                    {new Date(comment.created_at).toLocaleString()}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <Text 
+                style={[
+                  styles.noCommentsText, 
+                  { color: darkMode ? '#ccc' : '#666' }
+                ]}
+              >
+                No comments yet. Be the first to comment!
+              </Text>
+            )}
+          </ScrollView>
+          <View
+            style={[
+              styles.commentInputContainer,
+              { backgroundColor: darkMode ? '#2a2a2a' : '#f7f7f7' },
+            ]}
+          >
+            <TextInput
+              style={[
+                styles.commentInput,
+                { color: darkMode ? '#fff' : '#000' },
+              ]}
+              placeholder="Write a comment..."
+              placeholderTextColor={darkMode ? '#777' : '#666'}
+              value={newComment}
+              onChangeText={setNewComment}
+              multiline
+            />
+            <TouchableOpacity 
+              style={styles.sendButton} 
+              onPress={postComment}
+            >
+              <MaterialIcons 
+                name="send" 
+                size={24} 
+                color={darkMode ? '#4da6ff' : '#007AFF'} 
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
-    </View>
-  </View>
-</Modal>
+    </Modal>
 
     </SafeAreaView>
   );
@@ -1023,6 +1067,16 @@ const additionalStyles = StyleSheet.create({
   },
   sendButton: {
     padding: 5,
+  },
+  errorText: {
+    textAlign: 'center',
+    marginVertical: 20,
+    fontSize: 16,
+  },
+  noPostsText: {
+    textAlign: 'center',
+    marginVertical: 20,
+    fontSize: 16,
   },
 });
 

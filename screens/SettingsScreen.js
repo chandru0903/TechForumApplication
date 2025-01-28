@@ -43,21 +43,7 @@ const SettingsScreen = ({ navigation }) => {
           text: "Logout",
           onPress: async () => {
             try {
-              // Start animations
-              Animated.parallel([
-                Animated.timing(fadeAnim, {
-                  toValue: 0,
-                  duration: 200,
-                  useNativeDriver: true,
-                }),
-                Animated.timing(slideAnim, {
-                  toValue: 100,
-                  duration: 400,
-                  useNativeDriver: true,
-                })
-              ]).start();
-
-              // All keys that need to be cleared
+              // Keys to be removed from AsyncStorage
               const keysToRemove = [
                 'userId',
                 'authToken',
@@ -70,34 +56,21 @@ const SettingsScreen = ({ navigation }) => {
                 'profileData',
                 'userEmail'
               ];
-
-              try {
-                // Clear all auth-related data from AsyncStorage
-                await AsyncStorage.multiRemove(keysToRemove);
-                
-                // Call auth context logout
-                await authLogout();
-
-                // Add a slight delay for animation
-                setTimeout(() => {
-                  // Reset navigation stack and redirect to Login
-                  navigation.reset({
-                    index: 0,
-                    routes: [{ 
-                      name: 'login',
-                      params: { animated: true }
-                    }],
-                  });
-                }, 800);
-
-              } catch (error) {
-                console.error('Error during logout:', error);
-                Alert.alert(
-                  "Error",
-                  "Failed to logout completely. Please try again."
-                );
-              }
-
+  
+              // Clear all auth-related data from AsyncStorage
+              await AsyncStorage.multiRemove(keysToRemove);
+              
+              // Call auth context logout
+              await authLogout();
+  
+              // Reset navigation to login screen
+              navigation.reset({
+                index: 0,
+                routes: [{ 
+                  name: 'login',
+                  params: { animated: true }
+                }],
+              });
             } catch (error) {
               console.error('Logout error:', error);
               Alert.alert(

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,23 +9,112 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { format } from 'timeago.js';
 
-// Comment Modal Component
-const CommentModal = ({ visible, postId, onClose, darkMode, userId }) => {
+const ReplyInput = ({ darkMode, comment, onCancel, onSubmit, value, onChangeText, navigation }) => (
+  <View style={[styles.replyInput, { marginLeft: 40 }]}>
+    <TextInput
+      style={[
+        styles.input,
+        {
+          backgroundColor: darkMode ? '#444' : '#f0f0f0',
+          color: darkMode ? '#fff' : '#000'
+        }
+      ]}
+      placeholder="Write a reply..."
+      placeholderTextColor={darkMode ? '#999' : '#666'}
+      value={value}
+      onChangeText={onChangeText}
+      multiline
+    />
+    <View style={styles.replyActions}>
+      <TouchableOpacity
+        style={[styles.replyButton, { backgroundColor: darkMode ? '#444' : '#f0f0f0' }]}
+        onPress={onCancel}
+      >
+        <Text style={{ color: darkMode ? '#fff' : '#000' }}>Cancel</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.replyButton, { backgroundColor: '#6C5CE7' }]}
+        onPress={onSubmit}
+      >
+        <Text style={{ color: '#fff' }}>Reply</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+);
+
+const Comment = ({ comment, darkMode, userId, onReply, onEdit, onDelete, level = 0, navigation }) => (
+  
+  <View style={[styles.commentItem, { marginLeft: level === 0 ? 0 : 40 }]}>
+    
+    <Image
+      source={comment.profile_image ? { uri: comment.profile_image } : require('../assets/Profile.png')}
+      style={styles.commentAvatar}
+    />
+    <View style={styles.commentContent}>
+      <View style={styles.commentHeader}>
+        <Text style={[styles.commentUsername, { color: darkMode ? '#fff' : '#000' }]}>
+          {comment.username}
+        </Text>
+        <View style={styles.commentActions}>
+  {comment.user_id === userId && (
+    <>
+      <TouchableOpacity onPress={() => onEdit(comment)}>
+        <MaterialCommunityIcons name="pencil" size={16} color={darkMode ? '#ccc' : '#666'} />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => onDelete(comment.id)}>
+        <MaterialCommunityIcons name="delete" size={16} color={darkMode ? '#ccc' : '#666'} />
+      </TouchableOpacity>
+    </>
+  )}
+  <View style={styles.replyContainer}>
+    <TouchableOpacity 
+      onPress={() => onReply(comment)}
+      style={styles.replyWrapper}
+    >
+      <MaterialCommunityIcons name="reply" size={16} color={darkMode ? '#ccc' : '#666'} />
+      <Text style={[styles.replyCount, { color: darkMode ? '#ccc' : '#666' }]}>
+        {comment.replies ? comment.replies.length : 0}
+      </Text>
+    </TouchableOpacity>
+  </View>
+</View>
+      </View>
+      <Text style={[styles.commentText, { color: darkMode ? '#ccc' : '#666' }]}>
+        {comment.content}
+      </Text>
+      <View style={styles.commentMeta}>
+        <Text style={[styles.commentTime, { color: darkMode ? '#999' : '#666' }]}>
+          {format(new Date(comment.created_at))}
+        </Text>
+        {comment.is_edited && (
+          <Text style={[styles.editedLabel, { color: darkMode ? '#999' : '#666' }]}>
+            (edited)
+          </Text>
+        )}
+      </View>
+    </View>
+  </View>
+);
+
+const CommentModal = ({ visible, postId, onClose, darkMode, userId, navigation  }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
+  const [editingComment, setEditingComment] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
 
   const fetchComments = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://192.168.151.27/TechForum/backend/comments.php?post_id=${postId}`);
+      const response = await fetch(`http://192.168.151.27/TechForum/backend/comment4post.php?postId=${postId}`);
       const data = await response.json();
       if (data.success) {
-        setComments(data.data);
+        setComments(data.comments);
       }
     } catch (error) {
       console.error('Error fetching comments:', error);
@@ -34,25 +123,34 @@ const CommentModal = ({ visible, postId, onClose, darkMode, userId }) => {
     }
   };
 
-  const handleAddComment = async () => {
+  useEffect(() => {
+    if (visible) {
+      fetchComments();
+    }
+  }, [visible]);
+
+  const handleAddComment = async (parentId = null) => {
     if (!newComment.trim()) return;
 
     try {
-      const response = await fetch('http://192.168.151.27/TechForum/backend/comments.php', {
+      const response = await fetch('http://192.168.151.27/TechForum/backend/comment4post.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          post_id: postId,
-          user_id: userId,
+          action: 'create',
+          postId,
+          userId,
           content: newComment,
+          parentId
         }),
       });
 
       const data = await response.json();
       if (data.success) {
         setNewComment('');
+        setReplyingTo(null);
         fetchComments();
       }
     } catch (error) {
@@ -60,85 +158,200 @@ const CommentModal = ({ visible, postId, onClose, darkMode, userId }) => {
     }
   };
 
-  React.useEffect(() => {
-    if (visible) {
-      fetchComments();
+  const handleEditComment = async (commentId, content) => {
+    try {
+      const response = await fetch('http://192.168.151.27/TechForum/backend/comment4post.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'edit',
+          commentId,
+          userId,
+          content,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setEditingComment(null);
+        fetchComments();
+      }
+    } catch (error) {
+      console.error('Error editing comment:', error);
     }
-  }, [visible]);
+  };
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
-      <View style={[styles.modalContainer, { backgroundColor: darkMode ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.5)' }]}>
-        <View style={[styles.modalContent, { backgroundColor: darkMode ? '#333' : '#fff' }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: darkMode ? '#fff' : '#000' }]}>Comments</Text>
-            <TouchableOpacity onPress={onClose}>
-              <MaterialCommunityIcons name="close" size={24} color={darkMode ? '#fff' : '#000'} />
-            </TouchableOpacity>
-          </View>
+  const handleDeleteComment = async (commentId) => {
+    try {
+      const response = await fetch('http://192.168.151.27/TechForum/backend/comment4post.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'delete',
+          commentId,
+          userId,
+        }),
+      });
 
-          <ScrollView style={styles.commentsContainer}>
-            {loading ? (
-              <ActivityIndicator color="#6C5CE7" />
-            ) : comments.length > 0 ? (
-              comments.map((comment) => (
-                <View key={comment.id} style={styles.commentItem}>
-                  <Image
-                    source={comment.profile_image ? { uri: comment.profile_image } : require('../assets/Profile.png')}
-                    style={styles.commentAvatar}
-                  />
-                  <View style={styles.commentContent}>
-                    <Text style={[styles.commentUsername, { color: darkMode ? '#fff' : '#000' }]}>
-                      {comment.username}
-                    </Text>
-                    <Text style={[styles.commentText, { color: darkMode ? '#ccc' : '#666' }]}>
-                      {comment.content}
-                    </Text>
-                    <Text style={styles.commentTime}>{format(comment.created_at)}</Text>
-                  </View>
-                </View>
-              ))
-            ) : (
-              <Text style={[styles.noComments, { color: darkMode ? '#ccc' : '#666' }]}>
-                No comments yet
-              </Text>
-            )}
-          </ScrollView>
+      const data = await response.json();
+      if (data.success) {
+        fetchComments();
+      }
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+    }
+  };
 
-          <View style={styles.commentInput}>
+    const renderCommentThread = (comment) => (
+      <View key={comment.id}>
+        {editingComment?.id === comment.id ? (
+          <View style={styles.editContainer}>
             <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: darkMode ? '#444' : '#f0f0f0',
-                  color: darkMode ? '#fff' : '#000'
-                }
-              ]}
-              placeholder="Add a comment..."
-              placeholderTextColor={darkMode ? '#999' : '#666'}
-              value={newComment}
-              onChangeText={setNewComment}
+              style={[styles.editInput, {
+                backgroundColor: darkMode ? '#444' : '#f0f0f0',
+                color: darkMode ? '#fff' : '#000'
+              }]}
+              value={editingComment.content}
+              onChangeText={(text) => setEditingComment({ ...editingComment, content: text })}
               multiline
+              placeholder="Edit your comment..."
+              placeholderTextColor={darkMode ? '#999' : '#666'}
             />
-            <TouchableOpacity
-              style={[styles.sendButton, { opacity: newComment.trim() ? 1 : 0.5 }]}
-              onPress={handleAddComment}
-              disabled={!newComment.trim()}
-            >
-              <MaterialCommunityIcons name="send" size={24} color="#6C5CE7" />
-            </TouchableOpacity>
+            <View style={styles.editActions}>
+              <TouchableOpacity
+                onPress={() => setEditingComment(null)}
+                style={[styles.editButton, { backgroundColor: darkMode ? '#444' : '#f0f0f0' }]}
+              >
+                <Text style={{ color: darkMode ? '#fff' : '#000' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleEditComment(comment.id, editingComment.content)}
+                style={[styles.editButton, { backgroundColor: '#6C5CE7' }]}
+              >
+                <Text style={{ color: '#fff' }}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <Comment
+            comment={comment}
+            darkMode={darkMode}
+            userId={userId}
+            onReply={setReplyingTo}
+            onEdit={setEditingComment}
+            onDelete={handleDeleteComment}
+            level={0}
+            navigation={navigation}
+          />
+        )}
+
+        {replyingTo?.id === comment.id && (
+          <ReplyInput
+            darkMode={darkMode}
+            comment={comment}
+            onCancel={() => setReplyingTo(null)}
+            onSubmit={() => handleAddComment(comment.id)}
+            value={newComment}
+            onChangeText={setNewComment}
+            navigation={navigation}
+          />
+        )}
+
+        {comment.replies && (
+          <View style={styles.repliesContainer}>
+            {comment.replies.map(reply => (
+              <View key={reply.id}>
+                <Comment
+                  comment={reply}
+                  darkMode={darkMode}
+                  userId={userId}
+                  onReply={setReplyingTo}
+                  onEdit={setEditingComment}
+                  onDelete={handleDeleteComment}
+                  level={1}
+                  navigation={navigation}
+                />
+                
+                {replyingTo?.id === reply.id && (
+                  <ReplyInput
+                    darkMode={darkMode}
+                    comment={reply}
+                    onCancel={() => setReplyingTo(null)}
+                    onSubmit={() => handleAddComment(reply.id)}
+                    value={newComment}
+                    onChangeText={setNewComment}
+                    navigation={navigation}
+                  />
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    );
+
+    return (
+      <Modal
+        visible={visible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={onClose}
+      >
+        <View style={[styles.modalContainer, { backgroundColor: darkMode ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.5)' }]}>
+          <View style={[styles.modalContent, { backgroundColor: darkMode ? '#333' : '#fff' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: darkMode ? '#fff' : '#000' }]}>Comments</Text>
+              <TouchableOpacity onPress={onClose}>
+                <MaterialCommunityIcons name="close" size={24} color={darkMode ? '#fff' : '#000'} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.commentsContainer}>
+              {loading ? (
+                <ActivityIndicator color="#6C5CE7" />
+              ) : comments.length > 0 ? (
+                comments.map(comment => renderCommentThread(comment))
+              ) : (
+                <Text style={[styles.noComments, { color: darkMode ? '#ccc' : '#666' }]}>
+                  No comments yet
+                </Text>
+              )}
+            </ScrollView>
+
+            {!replyingTo && (
+              <View style={styles.commentInput}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: darkMode ? '#444' : '#f0f0f0',
+                      color: darkMode ? '#fff' : '#000'
+                    }
+                  ]}
+                  placeholder="Add a comment..."
+                  placeholderTextColor={darkMode ? '#999' : '#666'}
+                  value={newComment}
+                  onChangeText={setNewComment}
+                  multiline
+                />
+                <TouchableOpacity
+                  style={[styles.sendButton, { opacity: newComment.trim() ? 1 : 0.5 }]}
+                  onPress={() => handleAddComment()}
+                  disabled={!newComment.trim()}
+                >
+                  <MaterialCommunityIcons name="send" size={24} color="#6C5CE7" />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </View>
-      </View>
-    </Modal>
-  );
-};
-
+      </Modal>
+    );
+  };
 // Main PostCard Component
 const PostCard = ({ 
   post, 
@@ -146,8 +359,8 @@ const PostCard = ({
   userId,
   onLike,
   onDislike,
-  onBookmark,
   onRefresh,
+  navigation,
 }) => {
   const [isFullPostVisible, setIsFullPostVisible] = useState(false);
   const [isImageViewerVisible, setIsImageViewerVisible] = useState(false);
@@ -164,51 +377,66 @@ const PostCard = ({
 
   const handleLike = async () => {
     try {
-      await onLike(post.id);
-      if (onRefresh) onRefresh();
+      // Optimistically update the local state before API call
+      const newReaction = post.user_reaction === 'like' ? null : 'like';
+      const likesDelta = newReaction === 'like' ? 1 : (post.user_reaction === 'like' ? -1 : 0);
+      const dislikesDelta = post.user_reaction === 'dislike' ? -1 : 0;
+  
+      // Call onLike with updated state information
+      await onLike(post.id, {
+        newReaction,
+        likesDelta,
+        dislikesDelta
+      });
     } catch (error) {
       console.error('Error handling like:', error);
     }
   };
-
+  
   const handleDislike = async () => {
     try {
-      await onDislike(post.id);
-      if (onRefresh) onRefresh();
+      // Optimistically update the local state before API call
+      const newReaction = post.user_reaction === 'dislike' ? null : 'dislike';
+      const dislikesDelta = newReaction === 'dislike' ? 1 : (post.user_reaction === 'dislike' ? -1 : 0);
+      const likesDelta = post.user_reaction === 'like' ? -1 : 0;
+  
+      // Call onDislike with updated state information
+      await onDislike(post.id, {
+        newReaction,
+        dislikesDelta,
+        likesDelta
+      });
     } catch (error) {
       console.error('Error handling dislike:', error);
     }
   };
 
-  const handleBookmark = async () => {
-    try {
-      await onBookmark(post.id);
-      if (onRefresh) onRefresh();
-    } catch (error) {
-      console.error('Error handling bookmark:', error);
-    }
-  };
+  
 
   return (
     <View style={[styles.postContainer, { backgroundColor: darkMode ? '#444' : '#fff' }]}>
       <View style={styles.postHeader}>
         <View style={styles.postAuthor}>
-          <Image
-            source={post.profile_image ? { uri: post.profile_image } : require('../assets/Profile.png')}
-            style={styles.authorAvatar}
-          />
+        <TouchableOpacity 
+  onPress={() => {
+    if (post.user_id === userId) {
+      navigation.navigate('UserProfile');
+    } else {
+      navigation.navigate('Profile', { userId: post.user_id });
+    }
+  }}
+>
+  <Image
+    source={post.profile_image ? { uri: post.profile_image } : require('../assets/Profile.png')}
+    style={styles.authorAvatar}
+  />
+</TouchableOpacity>
           <View>
             <Text style={[styles.authorName, { color: darkMode ? '#fff' : '#000' }]}>{post.username}</Text>
             <Text style={[styles.postTime, { color: darkMode ? '#ccc' : '#666' }]}>{post.created_at}</Text>
           </View>
         </View>
-        <TouchableOpacity onPress={handleBookmark}>
-          <MaterialCommunityIcons 
-            name={post.is_bookmarked ? "bookmark" : "bookmark-outline"} 
-            size={24} 
-            color={post.is_bookmarked ? '#6C5CE7' : darkMode ? '#ccc' : '#666'} 
-          />
-        </TouchableOpacity>
+       
       </View>
 
       <Text style={[styles.postTitle, { color: darkMode ? '#fff' : '#000' }]}>{post.title}</Text>
@@ -331,12 +559,13 @@ const PostCard = ({
 
       {/* Comments Modal */}
       <CommentModal
-        visible={showComments}
-        postId={post.id}
-        userId={userId}
-        onClose={() => setShowComments(false)}
-        darkMode={darkMode}
-      />
+  visible={showComments}
+  postId={post.id}
+  userId={userId}
+  onClose={() => setShowComments(false)}
+  darkMode={darkMode}
+  navigation={navigation}
+/>
     </View>
   );
 };
@@ -521,7 +750,62 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     padding: 8,
-  }
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  commentActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  editContainer: {
+    marginTop: 8,
+  },
+  editInput: {
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 8,
+  },
+  editActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  editButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  commentMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editedLabel: {
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  replyInput: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderLeftWidth: 2,
+    borderLeftColor: '#6C5CE7',
+    marginLeft: 20,
+  },
+  replyActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 8,
+  },
+  replyButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  
 });
 
 export default PostCard;
