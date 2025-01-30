@@ -79,7 +79,7 @@ const WritePostScreen = ({ navigation }) => {
         name: filename,
       });
 
-      const response = await fetch('http://192.168.151.27/TechForum/backend/upload_image.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/upload_image.php', {
         method: 'POST',
         body: formData,
         headers: {
@@ -132,7 +132,7 @@ const WritePostScreen = ({ navigation }) => {
         post_type: type.toLowerCase()
       };
   
-      const response = await fetch('http://192.168.151.27/TechForum/backend/user_posts.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/user_posts.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

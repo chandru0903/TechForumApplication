@@ -30,7 +30,7 @@ const EditProfileScreen = ({ navigation }) => {
     try {
       const userId = await AsyncStorage.getItem('userId');
       console.log("User ID: ", userId); 
-      const response = await fetch(`http://192.168.151.27/TechForum/backend/get_profile.php?id=${userId}`, {
+      const response = await fetch(`http://192.168.133.11/TechForum/backend/get_profile.php?id=${userId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +86,7 @@ const EditProfileScreen = ({ navigation }) => {
         });
       }
   
-      const response = await fetch('http://192.168.151.27/TechForum/backend/update_profile.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/update_profile.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'multipart/form-data',

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDarkMode } from './Context/DarkMode';
+import { debounce } from 'lodash';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import QNA_Card from './components/QNA_Card';
 
@@ -22,10 +23,65 @@ const ForumScreen = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [userId, setUserId] = useState(null);
-  
+  const fetchQuestions = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const currentUserId = await AsyncStorage.getItem('userId');
+      const response = await fetch(
+        `http://192.168.151.27/TechForum/backend/get_questions.php?user_id=${currentUserId}`
+      );
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        setQuestions(data.data);
+      } else {
+        Alert.alert('Error', 'Failed to fetch questions');
+      }
+    } catch (error) {
+      console.error('Error fetching questions:', error);
+      Alert.alert('Error', 'Failed to fetch questions');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []); // Empty dependency array since it doesn't depend on any props or state
+
+  const [debouncedSearch] = useState(() => 
+    debounce(async (searchText, userId) => {
+      try {
+        const response = await fetch(
+          `http://192.168.151.27/TechForum/backend/get_questions.php?user_id=${userId}&search=${encodeURIComponent(searchText)}`
+        );
+        const data = await response.json();
+        if (data.status === 'success') {
+          setQuestions(data.data);
+        }
+      } catch (error) {
+        console.error('Search error:', error);
+      }
+    }, 500)
+  );
+
+  useEffect(() => {
+    fetchCurrentUser();
+  }, []);
+
+  useEffect(() => {
+    const getUserId = async () => {
+      const id = await AsyncStorage.getItem('userId');
+      setUserId(id);
+    };
+    getUserId();
+  }, []);
 
   useEffect(() => {
     fetchQuestions();
+  }, [fetchQuestions]);
+  
+  
+
+  useEffect(() => {
+   
     fetchCurrentUser();
   }, []);
 
@@ -49,40 +105,21 @@ const ForumScreen = ({ navigation }) => {
     }
   };
 
-  const fetchQuestions = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch('http://192.168.151.27/TechForum/backend/get_questions.php');
-      const data = await response.json();
-      
-      if (data.status === 'success') {
-        setQuestions(data.data);
-      } else {
-        Alert.alert('Error', 'Failed to fetch questions');
-      }
-    } catch (error) {
-      console.error('Error details:', error);
-      Alert.alert('Error', 'Failed to fetch questions');
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  };
 
-  const handleSearch = (text) => {
-    setSearchQuery(text);
-    const filteredData = questions.filter(question => 
-      question.title.toLowerCase().includes(text.toLowerCase()) ||
-      question.description.toLowerCase().includes(text.toLowerCase())
-    );
-    setQuestions(text ? filteredData : questions);
-  };
-
-  const handleRefresh = () => {
+  
+const handleRefresh = () => {
     setIsRefreshing(true);
     fetchQuestions();
   };
 
+const handleSearch = (text) => {
+  setSearchQuery(text);
+  if (userId) {
+    debouncedSearch(text, userId);
+  }
+};
+
+  
   const handleVote = async (postId, voteType) => {
     try {
       const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php?action=react', {

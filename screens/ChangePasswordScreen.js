@@ -49,7 +49,7 @@ const ChangePasswordScreen = () => {
         try {
           const userId = await AsyncStorage.getItem('userId');
           
-          const response = await fetch('http://192.168.151.27/TechForum/backend/change_password.php', {
+          const response = await fetch('http://192.168.133.11/TechForum/backend/change_password.php', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

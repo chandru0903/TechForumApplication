@@ -80,7 +80,7 @@ const UserProfileScreen = ({ navigation }) => {
         return;
       }
       
-      const response = await fetch('http://192.168.151.27/TechForum/backend/profile.php?id=' + userId);
+      const response = await fetch('http://192.168.133.11/TechForum/backend/profile.php?id=' + userId);
       const data = await response.json();
       
       if (data.success && data.data) {
@@ -166,12 +166,59 @@ const UserProfileScreen = ({ navigation }) => {
     </View>
   );
 
+  const handleEditComment = async (commentId, content) => {
+    try {
+      const response = await fetch('http://192.168.151.27/TechForum/backend/comment4post.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'edit',
+          commentId,
+          userId,
+          content,
+        }),
+      });
+  
+      const data = await response.json();
+      if (data.success) {
+        setComments(data.comments);
+        setEditingComment(null);
+      }
+    } catch (error) {
+      console.error('Error editing comment:', error);
+    }
+  };
+  
+  const handleDeleteComment = async (commentId) => {
+    try {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/comment4post.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'delete',
+          commentId,
+          userId,
+        }),
+      });
+  
+      const data = await response.json();
+      if (data.success) {
+        setComments(data.comments);
+      }
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+    }
+  };
   
   const handleBookmark = async (postId) => {
     try {
       if (!userId) return;
       
-      const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php?action=bookmark', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/post_reaction.php?action=bookmark', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -195,7 +242,7 @@ const UserProfileScreen = ({ navigation }) => {
     try {
       if (!userId) return;
       
-      const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php?action=react', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/post_reaction.php?action=react', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -220,7 +267,7 @@ const UserProfileScreen = ({ navigation }) => {
     try {
       if (!userId) return;
       
-      const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php?action=react', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/post_reaction.php?action=react', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -245,7 +292,7 @@ const UserProfileScreen = ({ navigation }) => {
     try {
       if (!userId) return;
       
-      const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php?action=react', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/post_reaction.php?action=react', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -306,10 +353,10 @@ const UserProfileScreen = ({ navigation }) => {
   
       // Fetch both posts and questions separately
       const postsResponse = await fetch(
-        `http://192.168.151.27/TechForum/backend/posts_view.php?user_id=${userId}&post_type=post`
+        `http://192.168.133.11/TechForum/backend/posts_view.php?user_id=${userId}&post_type=post`
       );
       const questionsResponse = await fetch(
-        `http://192.168.151.27/TechForum/backend/posts_view.php?user_id=${userId}&post_type=qa`
+        `http://192.168.133.11/TechForum/backend/posts_view.php?user_id=${userId}&post_type=qa`
       );
       
       const postsData = await postsResponse.json();

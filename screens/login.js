@@ -49,7 +49,7 @@ const Login = ({ navigation }) => {
       const formData = new FormData();
       formData.append('email', email.trim());
   
-      const response = await fetch('http://192.168.151.27/TechForum/backend/send_otp.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/send_otp.php', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -97,7 +97,7 @@ const Login = ({ navigation }) => {
       const formData = new FormData();
       formData.append('email', email.trim());
 
-      const response = await fetch('http://192.168.151.27/TechForum/backend/send_otp.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/send_otp.php', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',

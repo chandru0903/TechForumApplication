@@ -47,61 +47,68 @@ const ReplyInput = ({ darkMode, comment, onCancel, onSubmit, value, onChangeText
   </View>
 );
 
-const Comment = ({ comment, darkMode, userId, onReply, onEdit, onDelete, level = 0, navigation }) => (
-  
-  <View style={[styles.commentItem, { marginLeft: level === 0 ? 0 : 40 }]}>
-    
-    <Image
-      source={comment.profile_image ? { uri: comment.profile_image } : require('../assets/Profile.png')}
-      style={styles.commentAvatar}
-    />
-    <View style={styles.commentContent}>
-      <View style={styles.commentHeader}>
-        <Text style={[styles.commentUsername, { color: darkMode ? '#fff' : '#000' }]}>
-          {comment.username}
-        </Text>
-        <View style={styles.commentActions}>
-  {comment.user_id === userId && (
-    <>
-      <TouchableOpacity onPress={() => onEdit(comment)}>
-        <MaterialCommunityIcons name="pencil" size={16} color={darkMode ? '#ccc' : '#666'} />
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => onDelete(comment.id)}>
-        <MaterialCommunityIcons name="delete" size={16} color={darkMode ? '#ccc' : '#666'} />
-      </TouchableOpacity>
-    </>
-  )}
-  <View style={styles.replyContainer}>
-    <TouchableOpacity 
-      onPress={() => onReply(comment)}
-      style={styles.replyWrapper}
-    >
-      <MaterialCommunityIcons name="reply" size={16} color={darkMode ? '#ccc' : '#666'} />
-      <Text style={[styles.replyCount, { color: darkMode ? '#ccc' : '#666' }]}>
-        {comment.replies ? comment.replies.length : 0}
-      </Text>
-    </TouchableOpacity>
-  </View>
-</View>
-      </View>
-      <Text style={[styles.commentText, { color: darkMode ? '#ccc' : '#666' }]}>
-        {comment.content}
-      </Text>
-      <View style={styles.commentMeta}>
-        <Text style={[styles.commentTime, { color: darkMode ? '#999' : '#666' }]}>
-          {format(new Date(comment.created_at))}
-        </Text>
-        {comment.is_edited && (
-          <Text style={[styles.editedLabel, { color: darkMode ? '#999' : '#666' }]}>
-            (edited)
+const Comment = ({ comment, darkMode, userId, onReply, onEdit, onDelete, level = 0, navigation }) => {
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete Comment",
+      "Are you sure you want to delete this comment?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive",
+          onPress: () => onDelete(comment.id)
+        }
+      ]
+    );
+  };
+
+  return (
+    <View style={[styles.commentItem, { marginLeft: level === 0 ? 0 : 40 }]}>
+      <Image
+        source={comment.profile_image ? { uri: comment.profile_image } : require('../assets/Profile.png')}
+        style={styles.commentAvatar}
+      />
+      <View style={styles.commentContent}>
+        <View style={styles.commentHeader}>
+          <Text style={[styles.commentUsername, { color: darkMode ? '#fff' : '#000' }]}>
+            {comment.username}
           </Text>
-        )}
+          <View style={styles.commentActions}>
+            {comment.user_id === userId && (
+              <>
+                <TouchableOpacity onPress={() => onEdit(comment)} style={styles.actionButton}>
+                  <MaterialCommunityIcons name="pencil" size={16} color={darkMode ? '#ccc' : '#666'} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleDelete} style={styles.actionButton}>
+                  <MaterialCommunityIcons name="delete" size={16} color={darkMode ? '#ccc' : '#666'} />
+                </TouchableOpacity>
+              </>
+            )}
+            <TouchableOpacity onPress={() => onReply(comment)} style={styles.replyWrapper}>
+              <MaterialCommunityIcons name="reply" size={16} color={darkMode ? '#ccc' : '#666'} />
+            </TouchableOpacity>
+          </View>
+        </View>
+        <Text style={[styles.commentText, { color: darkMode ? '#ccc' : '#666' }]}>
+          {comment.content}
+        </Text>
+        <View style={styles.commentMeta}>
+          <Text style={[styles.commentTime, { color: darkMode ? '#999' : '#666' }]}>
+            {format(new Date(comment.created_at))}
+          </Text>
+          {comment.is_edited && (
+            <Text style={[styles.editedLabel, { color: darkMode ? '#999' : '#666' }]}>
+              (edited)
+            </Text>
+          )}
+        </View>
       </View>
     </View>
-  </View>
-);
+  );
+};
 
-const CommentModal = ({ visible, postId, onClose, darkMode, userId, navigation  }) => {
+const CommentModal = ({ visible, postId, onClose, darkMode, userId, navigation }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
@@ -111,7 +118,7 @@ const CommentModal = ({ visible, postId, onClose, darkMode, userId, navigation  
   const fetchComments = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://192.168.151.27/TechForum/backend/comment4post.php?postId=${postId}`);
+      const response = await fetch(`http://192.168.133.11/TechForum/backend/comment4post.php?postId=${postId}`);
       const data = await response.json();
       if (data.success) {
         setComments(data.comments);
@@ -133,7 +140,7 @@ const CommentModal = ({ visible, postId, onClose, darkMode, userId, navigation  
     if (!newComment.trim()) return;
 
     try {
-      const response = await fetch('http://192.168.151.27/TechForum/backend/comment4post.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/comment4post.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -160,7 +167,7 @@ const CommentModal = ({ visible, postId, onClose, darkMode, userId, navigation  
 
   const handleEditComment = async (commentId, content) => {
     try {
-      const response = await fetch('http://192.168.151.27/TechForum/backend/comment4post.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/comment4post.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -180,12 +187,13 @@ const CommentModal = ({ visible, postId, onClose, darkMode, userId, navigation  
       }
     } catch (error) {
       console.error('Error editing comment:', error);
+      Alert.alert('Error', 'Failed to edit comment');
     }
   };
 
   const handleDeleteComment = async (commentId) => {
     try {
-      const response = await fetch('http://192.168.151.27/TechForum/backend/comment4post.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/comment4post.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -200,54 +208,57 @@ const CommentModal = ({ visible, postId, onClose, darkMode, userId, navigation  
       const data = await response.json();
       if (data.success) {
         fetchComments();
+      } else {
+        Alert.alert('Error', 'Failed to delete comment');
       }
     } catch (error) {
       console.error('Error deleting comment:', error);
+      Alert.alert('Error', 'Failed to delete comment');
     }
   };
 
-    const renderCommentThread = (comment) => (
-      <View key={comment.id}>
-        {editingComment?.id === comment.id ? (
-          <View style={styles.editContainer}>
-            <TextInput
-              style={[styles.editInput, {
-                backgroundColor: darkMode ? '#444' : '#f0f0f0',
-                color: darkMode ? '#fff' : '#000'
-              }]}
-              value={editingComment.content}
-              onChangeText={(text) => setEditingComment({ ...editingComment, content: text })}
-              multiline
-              placeholder="Edit your comment..."
-              placeholderTextColor={darkMode ? '#999' : '#666'}
-            />
-            <View style={styles.editActions}>
-              <TouchableOpacity
-                onPress={() => setEditingComment(null)}
-                style={[styles.editButton, { backgroundColor: darkMode ? '#444' : '#f0f0f0' }]}
-              >
-                <Text style={{ color: darkMode ? '#fff' : '#000' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleEditComment(comment.id, editingComment.content)}
-                style={[styles.editButton, { backgroundColor: '#6C5CE7' }]}
-              >
-                <Text style={{ color: '#fff' }}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <Comment
-            comment={comment}
-            darkMode={darkMode}
-            userId={userId}
-            onReply={setReplyingTo}
-            onEdit={setEditingComment}
-            onDelete={handleDeleteComment}
-            level={0}
-            navigation={navigation}
+  const renderCommentThread = (comment) => (
+    <View key={comment.id}>
+      {editingComment?.id === comment.id ? (
+        <View style={styles.editContainer}>
+          <TextInput
+            style={[styles.editInput, {
+              backgroundColor: darkMode ? '#444' : '#f0f0f0',
+              color: darkMode ? '#fff' : '#000'
+            }]}
+            value={editingComment.content}
+            onChangeText={(text) => setEditingComment({ ...editingComment, content: text })}
+            multiline
+            placeholder="Edit your comment..."
+            placeholderTextColor={darkMode ? '#999' : '#666'}
           />
-        )}
+          <View style={styles.editActions}>
+            <TouchableOpacity
+              onPress={() => setEditingComment(null)}
+              style={[styles.editButton, { backgroundColor: darkMode ? '#444' : '#f0f0f0' }]}
+            >
+              <Text style={{ color: darkMode ? '#fff' : '#000' }}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleEditComment(comment.id, editingComment.content)}
+              style={[styles.editButton, { backgroundColor: '#6C5CE7' }]}
+            >
+              <Text style={{ color: '#fff' }}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <Comment
+          comment={comment}
+          darkMode={darkMode}
+          userId={userId}
+          onReply={setReplyingTo}
+          onEdit={setEditingComment}
+          onDelete={handleDeleteComment}
+          level={0}
+          navigation={navigation}
+        />
+      )}
 
         {replyingTo?.id === comment.id && (
           <ReplyInput
@@ -444,7 +455,7 @@ const PostCard = ({
       {post.image_url && (
         <TouchableOpacity activeOpacity={0.9} onPress={handleImagePress}>
           <Image
-            source={{ uri: `http://192.168.151.27/TechForum/backend/${post.image_url}` }}
+            source={{ uri: `http://192.168.133.11/TechForum/backend/${post.image_url}` }}
             style={styles.postImage}
             resizeMode="cover"
           />
@@ -523,7 +534,7 @@ const PostCard = ({
             <Text style={[styles.modalTitle, { color: darkMode ? '#fff' : '#000' }]}>{post.title}</Text>
             {post.image_url && (
               <Image
-                source={{ uri: `http://192.168.151.27/TechForum/backend/${post.image_url}` }}
+                source={{ uri: `http://192.168.133.11/TechForum/backend/${post.image_url}` }}
                 style={styles.modalImage}
                 resizeMode="contain"
               />
@@ -550,7 +561,7 @@ const PostCard = ({
             <MaterialCommunityIcons name="close" size={24} color="#fff" />
           </TouchableOpacity>
           <Image
-            source={{ uri: `http://192.168.151.27/TechForum/backend/${post.image_url}` }}
+            source={{ uri: `http://192.168.133.11/TechForum/backend/${post.image_url}` }}
             style={styles.fullImage}
             resizeMode="contain"
           />
@@ -665,6 +676,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
+    marginTop: 16,
   },
   modalDescription: {
     fontSize: 16,
@@ -679,8 +691,8 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    right: 16,
-    top: 16,
+    right: 0,
+    top: -16,
     zIndex: 1,
     padding: 8,
   },

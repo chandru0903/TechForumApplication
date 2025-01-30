@@ -87,7 +87,7 @@ const HomeScreen = ({ navigation }) => {
 
   const fetchComments = async (postId) => {
     try {
-      const response = await fetch(`http://192.168.151.27/TechForum/backend/comments.php?post_id=${postId}`);
+      const response = await fetch(`http://192.168.133.11/TechForum/backend/comment4post.php?post_id=${postId}`);
       const data = await response.json();
       
       if (data.success) {
@@ -112,7 +112,7 @@ const HomeScreen = ({ navigation }) => {
     try {
       const userId = await AsyncStorage.getItem('userId');
       
-      const response = await fetch('http://192.168.151.27/TechForum/backend/comments.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/comment4post.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -152,7 +152,7 @@ const HomeScreen = ({ navigation }) => {
       const userId = await AsyncStorage.getItem('userId');
       if (!userId) return;
 
-      const response = await fetch(`http://192.168.151.27/TechForum/backend/profile.php?id=${userId}`);
+      const response = await fetch(`http://192.168.133.11/TechForum/backend/profile.php?id=${userId}`);
       const data = await response.json();
       
       if (data.success && data.data) {
@@ -200,7 +200,7 @@ const HomeScreen = ({ navigation }) => {
     try {
       setIsLoading(true);
       const userId = await AsyncStorage.getItem('userId');
-      const response = await fetch(`http://192.168.151.27/TechForum/backend/home.php?user_id=${userId}&post_type=post`);
+      const response = await fetch(`http://192.168.133.11/TechForum/backend/home.php?user_id=${userId}&post_type=post`);
       const data = await response.json();
       
       if (data.success) {
@@ -220,7 +220,7 @@ const HomeScreen = ({ navigation }) => {
     try {
       const userId = await AsyncStorage.getItem('userId');
       
-      const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/post_reaction.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -259,7 +259,7 @@ const HomeScreen = ({ navigation }) => {
     try {
       const userId = await AsyncStorage.getItem('userId');
       
-      const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/post_reaction.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

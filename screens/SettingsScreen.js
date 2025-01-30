@@ -92,7 +92,7 @@ const SettingsScreen = ({ navigation }) => {
         return;
       }
       
-      const response = await fetch('http://192.168.151.27/TechForum/backend/profile.php?id=' + userId);
+      const response = await fetch('http://192.168.133.11/TechForum/backend/profile.php?id=' + userId);
       
       const data = await response.json();
       

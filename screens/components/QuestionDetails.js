@@ -24,6 +24,8 @@ const Comment = ({ comment, onReply, onEdit, onDelete, currentUser, themeStyles,
   const isLoggedIn = !!currentUser;
   const isCommentOwner = currentUser?.id === comment.user_id;
 
+  const showReplyButton = level === 0;
+  
   const handleEdit = async () => {
     try {
       const success = await onEdit(comment.id, editedContent);
@@ -218,7 +220,7 @@ const QuestionDetailScreen = ({ route, navigation }) => {
       }
   
       const response = await fetch(
-        `http://192.168.151.27/TechForum/backend/profile.php?id=${userId}`,
+        `http://192.168.133.11/TechForum/backend/profile.php?id=${userId}`,
         {
           method: 'GET',
           headers: {
@@ -291,7 +293,7 @@ const QuestionDetailScreen = ({ route, navigation }) => {
   const fetchComments = async () => {
     try {
       const response = await fetch(
-        `http://192.168.151.27/TechForum/backend/comments.php?postId=${questionId}`
+        `http://192.168.133.11/TechForum/backend/comments.php?postId=${questionId}`
       );
       const data = await response.json();
       if (data.success) {
@@ -313,7 +315,7 @@ const QuestionDetailScreen = ({ route, navigation }) => {
   
     try {
       setIsPostingComment(true);
-      const response = await fetch('http://192.168.151.27/TechForum/backend/comments.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/comments.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -350,7 +352,7 @@ const QuestionDetailScreen = ({ route, navigation }) => {
 
     try {
         setIsPostingComment(true);
-        const response = await fetch('http://192.168.151.27/TechForum/backend/comments.php', {
+        const response = await fetch('http://192.168.133.11/TechForum/backend/comments.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -400,7 +402,7 @@ const QuestionDetailScreen = ({ route, navigation }) => {
 
   const handleEditComment = async (commentId, newContent) => {
     try {
-      const response = await fetch('http://192.168.151.27/TechForum/backend/comments.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/comments.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -428,7 +430,7 @@ const QuestionDetailScreen = ({ route, navigation }) => {
 
   const handleDeleteComment = async (commentId) => {
     try {
-      const response = await fetch('http://192.168.151.27/TechForum/backend/comments.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/comments.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -454,7 +456,7 @@ const QuestionDetailScreen = ({ route, navigation }) => {
     if (mentionMatch) {
       try {
         const response = await fetch(
-          `http://192.168.151.27/TechForum/backend/search_users.php?query=${mentionMatch[1]}`
+          `http://192.168.133.11/TechForum/backend/search_users.php?query=${mentionMatch[1]}`
         );
         const data = await response.json();
         if (data.success) {
@@ -479,7 +481,7 @@ const QuestionDetailScreen = ({ route, navigation }) => {
   const fetchQuestionDetails = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`http://192.168.151.27/TechForum/backend/get_question_details.php?questionId=${questionId}`);
+      const response = await fetch(`http://192.168.133.11/TechForum/backend/get_question_details.php?questionId=${questionId}`);
       const data = await response.json();
       
       if (data.status === 'success') {
@@ -561,7 +563,7 @@ const QuestionDetailScreen = ({ route, navigation }) => {
             {question.image_url && (
     <Image
         source={{ 
-            uri: `http://192.168.151.27/TechForum/backend/uploads/${question.image_url}` 
+            uri: `http://192.168.133.11/TechForum/backend/uploads/${question.image_url}` 
         }}
         style={styles.questionImage}
         resizeMode="contain"

@@ -68,7 +68,7 @@ const EmailVerification = ({ navigation, route }) => {
       formData.append('email', email);
       formData.append('otp', verificationCode.trim());
 
-      const response = await fetch('http://192.168.151.27/TechForum/backend/verify_otp.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/verify_otp.php', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -111,7 +111,7 @@ const EmailVerification = ({ navigation, route }) => {
           registerFormData.append('email', email.trim().toLowerCase());
           registerFormData.append('password', password);
 
-          const registerResponse = await fetch('http://192.168.151.27/TechForum/backend/register.php', {
+          const registerResponse = await fetch('http://192.168.133.11/TechForum/backend/register.php', {
             method: 'POST',
             headers: {
               'Accept': 'application/json'
@@ -155,7 +155,7 @@ const EmailVerification = ({ navigation, route }) => {
       otpFormData.append('email', email);
       otpFormData.append('type', route.params.isRegistration ? 'registration' : 'login');
 
-      const response = await fetch('http://192.168.151.27/TechForum/backend/send_otp.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/send_otp.php', {
         method: 'POST',
         headers: {
           'Accept': 'application/json'

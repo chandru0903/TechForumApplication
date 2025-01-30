@@ -9,7 +9,7 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
-  Alert,
+  Alert, 
   Dimensions,
   Animated,
 } from 'react-native';
@@ -143,7 +143,7 @@ const ProfileScreen = ({ route, navigation }) => {
       const userId = await AsyncStorage.getItem('userId'); // Add this line to get userId
       if (!authToken || !userId) return;
   
-      const response = await fetch(`http://192.168.151.27/TechForum/backend/post_reaction.php`, {
+      const response = await fetch(`http://192.168.133.11/TechForum/backend/post_reaction.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -175,7 +175,7 @@ const ProfileScreen = ({ route, navigation }) => {
       const userId = await AsyncStorage.getItem('userId'); // Add this line to get userId
       if (!authToken || !userId) return;
   
-      const response = await fetch(`http://192.168.151.27/TechForum/backend/post_reaction.php`, {
+      const response = await fetch(`http://192.168.133.11/TechForum/backend/post_reaction.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -241,7 +241,7 @@ const ProfileScreen = ({ route, navigation }) => {
     try {
       if (!userId) return;
       
-      const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php?action=react', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/post_reaction.php?action=react', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
