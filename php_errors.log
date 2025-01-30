@@ -1,0 +1,114 @@
+[08-Jan-2025 08:13:25 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'fullname' in 'field list' in C:\xampp\htdocs\TechForum\backend\register.php:58
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(58): mysqli->prepare('INSERT INTO use...')
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 58
+[08-Jan-2025 08:16:46 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'fullname' in 'field list' in C:\xampp\htdocs\TechForum\backend\register.php:58
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(58): mysqli->prepare('INSERT INTO use...')
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 58
+[08-Jan-2025 08:17:57 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Duplicate entry '' for key 'username' in C:\xampp\htdocs\TechForum\backend\register.php:66
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(66): mysqli_stmt->execute()
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 66
+[08-Jan-2025 08:18:42 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Duplicate entry '' for key 'username' in C:\xampp\htdocs\TechForum\backend\register.php:66
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(66): mysqli_stmt->execute()
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 66
+[08-Jan-2025 08:23:36 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Duplicate entry '' for key 'username' in C:\xampp\htdocs\TechForum\backend\register.php:66
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(66): mysqli_stmt->execute()
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 66
+[09-Jan-2025 10:36:31 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'id' in 'field list' in C:\xampp\htdocs\TechForum\backend\register.php:41
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(41): mysqli->prepare('SELECT id FROM ...')
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 41
+[09-Jan-2025 10:36:55 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'id' in 'field list' in C:\xampp\htdocs\TechForum\backend\register.php:41
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(41): mysqli->prepare('SELECT id FROM ...')
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 41
+[09-Jan-2025 10:37:17 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'id' in 'field list' in C:\xampp\htdocs\TechForum\backend\register.php:41
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(41): mysqli->prepare('SELECT id FROM ...')
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 41
+[09-Jan-2025 10:38:23 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'id' in 'field list' in C:\xampp\htdocs\TechForum\backend\register.php:41
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(41): mysqli->prepare('SELECT id FROM ...')
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 41
+[09-Jan-2025 10:38:28 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'id' in 'field list' in C:\xampp\htdocs\TechForum\backend\register.php:41
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(41): mysqli->prepare('SELECT id FROM ...')
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 41
+[09-Jan-2025 11:02:08 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown column 'user_id' in 'field list' in C:\xampp\htdocs\TechForum\backend\register.php:41
+Stack trace:
+#0 C:\xampp\htdocs\TechForum\backend\register.php(41): mysqli->prepare('SELECT user_id ...')
+#1 {main}
+  thrown in C:\xampp\htdocs\TechForum\backend\register.php on line 41
+[19-Jan-2025 06:12:59 Europe/Berlin] PHP Warning:  Undefined variable $query in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 41
+[19-Jan-2025 06:12:59 Europe/Berlin] Query: 
+[19-Jan-2025 06:12:59 Europe/Berlin] PHP Warning:  Undefined variable $user_id in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 42
+[19-Jan-2025 06:12:59 Europe/Berlin] Parameters: user_id=, search=, limit=10, offset=10
+[19-Jan-2025 06:12:59 Europe/Berlin] API Error: Unknown column 'c.post_id' in 'on clause'
+[19-Jan-2025 06:13:03 Europe/Berlin] PHP Warning:  Undefined variable $query in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 41
+[19-Jan-2025 06:13:03 Europe/Berlin] Query: 
+[19-Jan-2025 06:13:03 Europe/Berlin] PHP Warning:  Undefined variable $user_id in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 42
+[19-Jan-2025 06:13:03 Europe/Berlin] Parameters: user_id=, search=, limit=10, offset=0
+[19-Jan-2025 06:13:03 Europe/Berlin] API Error: Unknown column 'c.post_id' in 'on clause'
+[19-Jan-2025 06:13:03 Europe/Berlin] PHP Warning:  Undefined variable $query in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 41
+[19-Jan-2025 06:13:03 Europe/Berlin] Query: 
+[19-Jan-2025 06:13:03 Europe/Berlin] PHP Warning:  Undefined variable $user_id in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 42
+[19-Jan-2025 06:13:03 Europe/Berlin] Parameters: user_id=, search=, limit=5, offset=0
+[19-Jan-2025 06:13:03 Europe/Berlin] API Error: Unknown column 'c.post_id' in 'on clause'
+[19-Jan-2025 06:13:05 Europe/Berlin] PHP Warning:  Undefined variable $query in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 41
+[19-Jan-2025 06:13:05 Europe/Berlin] Query: 
+[19-Jan-2025 06:13:05 Europe/Berlin] PHP Warning:  Undefined variable $user_id in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 42
+[19-Jan-2025 06:13:05 Europe/Berlin] Parameters: user_id=, search=, limit=10, offset=10
+[19-Jan-2025 06:13:05 Europe/Berlin] API Error: Unknown column 'c.post_id' in 'on clause'
+[19-Jan-2025 06:13:06 Europe/Berlin] PHP Warning:  Undefined variable $query in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 41
+[19-Jan-2025 06:13:06 Europe/Berlin] Query: 
+[19-Jan-2025 06:13:06 Europe/Berlin] PHP Warning:  Undefined variable $user_id in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 42
+[19-Jan-2025 06:13:06 Europe/Berlin] Parameters: user_id=, search=t, limit=10, offset=0
+[19-Jan-2025 06:13:06 Europe/Berlin] API Error: Unknown column 'c.post_id' in 'on clause'
+[19-Jan-2025 06:13:06 Europe/Berlin] PHP Warning:  Undefined variable $query in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 41
+[19-Jan-2025 06:13:06 Europe/Berlin] Query: 
+[19-Jan-2025 06:13:06 Europe/Berlin] PHP Warning:  Undefined variable $user_id in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 42
+[19-Jan-2025 06:13:06 Europe/Berlin] Parameters: user_id=, search=tf, limit=10, offset=0
+[19-Jan-2025 06:13:06 Europe/Berlin] API Error: Unknown column 'c.post_id' in 'on clause'
+[19-Jan-2025 06:13:06 Europe/Berlin] PHP Warning:  Undefined variable $query in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 41
+[19-Jan-2025 06:13:06 Europe/Berlin] Query: 
+[19-Jan-2025 06:13:06 Europe/Berlin] PHP Warning:  Undefined variable $user_id in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 42
+[19-Jan-2025 06:13:06 Europe/Berlin] Parameters: user_id=, search=tfh, limit=10, offset=0
+[19-Jan-2025 06:13:06 Europe/Berlin] API Error: Unknown column 'c.post_id' in 'on clause'
+[19-Jan-2025 06:13:06 Europe/Berlin] PHP Warning:  Undefined variable $query in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 41
+[19-Jan-2025 06:13:06 Europe/Berlin] Query: 
+[19-Jan-2025 06:13:06 Europe/Berlin] PHP Warning:  Undefined variable $user_id in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 42
+[19-Jan-2025 06:13:06 Europe/Berlin] Parameters: user_id=, search=tfhf, limit=10, offset=0
+[19-Jan-2025 06:13:06 Europe/Berlin] API Error: Unknown column 'c.post_id' in 'on clause'
+[19-Jan-2025 06:13:07 Europe/Berlin] PHP Warning:  Undefined variable $query in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 41
+[19-Jan-2025 06:13:07 Europe/Berlin] Query: 
+[19-Jan-2025 06:13:07 Europe/Berlin] PHP Warning:  Undefined variable $user_id in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 42
+[19-Jan-2025 06:13:07 Europe/Berlin] Parameters: user_id=, search=tfh, limit=10, offset=0
+[19-Jan-2025 06:13:07 Europe/Berlin] API Error: Unknown column 'c.post_id' in 'on clause'
+[19-Jan-2025 06:13:44 Europe/Berlin] PHP Warning:  Undefined variable $query in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 41
+[19-Jan-2025 06:13:44 Europe/Berlin] PHP Warning:  Undefined variable $query in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 41
+[19-Jan-2025 06:13:44 Europe/Berlin] Query: 
+[19-Jan-2025 06:13:44 Europe/Berlin] Query: 
+[19-Jan-2025 06:13:44 Europe/Berlin] PHP Warning:  Undefined variable $user_id in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 42
+[19-Jan-2025 06:13:44 Europe/Berlin] PHP Warning:  Undefined variable $user_id in C:\xampp\htdocs\TechForum\backend\get_questions.php on line 42
+[19-Jan-2025 06:13:44 Europe/Berlin] Parameters: user_id=, search=, limit=10, offset=0
+[19-Jan-2025 06:13:44 Europe/Berlin] Parameters: user_id=, search=, limit=5, offset=0
+[19-Jan-2025 06:13:44 Europe/Berlin] API Error: Unknown column 'c.post_id' in 'on clause'
+[19-Jan-2025 06:13:44 Europe/Berlin] API Error: Unknown column 'c.post_id' in 'on clause'
+[19-Jan-2025 06:19:19 Europe/Berlin] API Error: Unknown column 'c.post_id' in 'on clause'
+[19-Jan-2025 06:22:17 Europe/Berlin] API Error: Unknown column 'c.post_id' in 'on clause'
+[19-Jan-2025 06:23:14 Europe/Berlin] API Error: Unknown column 'c.post_id' in 'on clause'
+[19-Jan-2025 06:23:14 Europe/Berlin] API Error: Unknown column 'c.post_id' in 'on clause'

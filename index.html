@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Hashing</title>
+</head>
+<body>
+
+<h2>Hash Password</h2>
+<form id="hashForm">
+    <input type="email" id="email" placeholder="Enter email" required>
+    <button type="submit">Hash Password</button>
+</form>
+
+<script>
+document.getElementById('hashForm').onsubmit = function(e) {
+    e.preventDefault();
+    
+    fetch('hash_password.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            email: document.getElementById('email').value
+        })
+    })
+    .then(response => response.json())
+    .then(data => alert(data.message))
+    .catch(error => alert('Error: ' + error));
+};
+</script>
+
+</body>
+</html>
