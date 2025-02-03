@@ -28,7 +28,7 @@ const ForumScreen = ({ navigation }) => {
     try {
       const currentUserId = await AsyncStorage.getItem('userId');
       const response = await fetch(
-        `http://192.168.151.27/TechForum/backend/get_questions.php?user_id=${currentUserId}`
+        `http://192.168.133.11/TechForum/backend/get_questions.php?user_id=${currentUserId}`
       );
       const data = await response.json();
       
@@ -50,7 +50,7 @@ const ForumScreen = ({ navigation }) => {
     debounce(async (searchText, userId) => {
       try {
         const response = await fetch(
-          `http://192.168.151.27/TechForum/backend/get_questions.php?user_id=${userId}&search=${encodeURIComponent(searchText)}`
+          `http://192.168.133.11/TechForum/backend/get_questions.php?user_id=${userId}&search=${encodeURIComponent(searchText)}`
         );
         const data = await response.json();
         if (data.status === 'success') {
@@ -95,7 +95,7 @@ const ForumScreen = ({ navigation }) => {
   const fetchCurrentUser = async () => {
     try {
       const userId = await AsyncStorage.getItem('userId');
-      const response = await fetch(`http://192.168.151.27/TechForum/backend/profile.php?user_id=${userId}`);
+      const response = await fetch(`http://192.168.133.11/TechForum/backend/profile.php?user_id=${userId}`);
       const data = await response.json();
       if (data.success) {
         setCurrentUser(data.user);
@@ -122,7 +122,7 @@ const handleSearch = (text) => {
   
   const handleVote = async (postId, voteType) => {
     try {
-      const response = await fetch('http://192.168.151.27/TechForum/backend/post_reaction.php?action=react', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/post_reaction.php?action=react', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

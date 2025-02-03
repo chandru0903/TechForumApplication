@@ -11,6 +11,9 @@ import {
   Platform,
   TextInput,
   TouchableOpacity,
+  Modal,
+  Dimensions,
+  SafeAreaView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDarkMode } from '../Context/DarkMode';
@@ -209,6 +212,41 @@ const QuestionDetailScreen = ({ route, navigation }) => {
   const [hasError, setHasError] = useState(false);
   const [showNestedReplyInput, setShowNestedReplyInput] = useState(false);
   const [nestedReplyContent, setNestedReplyContent] = useState('');
+  const [isImageModalVisible, setIsImageModalVisible] = useState(false);
+  const ImageModal = ({ visible, imageUrl, onClose }) => {
+    const screenWidth = Dimensions.get('window').width-10;
+    const screenHeight = Dimensions.get('window').height-10;
+
+    return (
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={visible}
+        onRequestClose={onClose}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <TouchableOpacity 
+            style={styles.closeButton}
+            onPress={onClose}
+          >
+            <Text style={styles.closeButtonText}>×</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.modalImageContainer}>
+            <Image
+              source={{ 
+                uri: imageUrl,
+                width: screenWidth,
+                height: screenHeight * 0.8,
+              }}
+              style={styles.modalImage}
+              resizeMode="contain"
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
+    );
+  };
   const fetchCurrentUser = async () => {
     try {
       const userId = await AsyncStorage.getItem('userId');
@@ -346,7 +384,7 @@ const QuestionDetailScreen = ({ route, navigation }) => {
   
   const handleReplyToComment = async (parentCommentId, content) => {
     if (!currentUser || !currentUser.id) {
-        Alert.alert('Error', 'Please log in to reply');
+        Alert.alert('Critical Error', 'Please log in to reply');
         return false;
     }
 
@@ -371,12 +409,11 @@ const QuestionDetailScreen = ({ route, navigation }) => {
             await fetchComments(); // Refresh all comments
             return true;
         } else {
-            Alert.alert('Error', data.message || 'Failed to post reply');
+            Alert.alert('Content Warning', data.message || 'Failed to post reply');
             return false;
         }
     } catch (error) {
-        console.error('Error posting reply:', error);
-        Alert.alert('Error', 'Failed to post reply');
+        Alert.alert('Check your internet connection');
         return false;
     } finally {
         setIsPostingComment(false);
@@ -385,7 +422,7 @@ const QuestionDetailScreen = ({ route, navigation }) => {
 
   const handleNestedReply = async (parentReplyId) => {
     if (!nestedReplyContent.trim()) {
-      Alert.alert('Error', 'Reply cannot be empty');
+      Alert.alert( 'Reply cannot be empty');
       return;
     }
 
@@ -396,7 +433,7 @@ const QuestionDetailScreen = ({ route, navigation }) => {
         setNestedReplyContent('');
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to post reply');
+      Alert.alert('Failed to post reply. Check you connection');
     }
   };
 
@@ -423,7 +460,6 @@ const QuestionDetailScreen = ({ route, navigation }) => {
       }
       return false;
     } catch (error) {
-      console.error('Error editing comment:', error);
       return false;
     }
   };
@@ -447,8 +483,7 @@ const QuestionDetailScreen = ({ route, navigation }) => {
         fetchComments();
       }
     } catch (error) {
-      console.error('Error deleting comment:', error);
-      Alert.alert('Error', 'Failed to delete comment');
+      Alert.alert( 'Failed to delete comment, retry again.' );
     }
   };
   const handleMentionSearch = async (text) => {
@@ -463,7 +498,6 @@ const QuestionDetailScreen = ({ route, navigation }) => {
           setMentionSuggestions(data.users);
         }
       } catch (error) {
-        console.error('Error searching users:', error);
       }
     } else {
       setMentionSuggestions([]);
@@ -476,8 +510,6 @@ const QuestionDetailScreen = ({ route, navigation }) => {
   };
 
  
-
-  
   const fetchQuestionDetails = async () => {
     try {
       setIsLoading(true);
@@ -485,13 +517,14 @@ const QuestionDetailScreen = ({ route, navigation }) => {
       const data = await response.json();
       
       if (data.status === 'success') {
+        console.log('Question data:', data.question); // Add this log
+        console.log('Image URL:', data.question.image_url); // Add this log
         setQuestion(data.question);
       } else {
-        Alert.alert('Error', 'Failed to fetch question details');
+        Alert.alert( 'Failed to fetch question details, check your internet connection');
       }
     } catch (error) {
-      console.error('Error fetching question details:', error);
-      Alert.alert('Error', 'Failed to fetch question details');
+      Alert.alert('Error', 'Internet connection error');
     } finally {
       setIsLoading(false);
     }
@@ -560,15 +593,22 @@ const QuestionDetailScreen = ({ route, navigation }) => {
               {question.description}
             </Text>
 
-            {question.image_url && (
-    <Image
-        source={{ 
-            uri: `http://192.168.133.11/TechForum/backend/uploads/${question.image_url}` 
-        }}
-        style={styles.questionImage}
-        resizeMode="contain"
-    />
-)}
+            {question.image_url ? (
+              <TouchableOpacity 
+                onPress={() => setIsImageModalVisible(true)}
+                activeOpacity={0.9}
+              >
+                <Image
+                  source={{ 
+                    uri: `http://192.168.133.11/TechForum/backend/${question.image_url}`,
+                    width: 300,
+                    height: 200
+                  }}
+                  style={[styles.questionImage, { backgroundColor: '#e1e1e1' }]}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            ) : null}
 
             <View style={styles.authorInfo}>
             <TouchableOpacity 
@@ -580,6 +620,11 @@ const QuestionDetailScreen = ({ route, navigation }) => {
     }
   }}
 >
+<ImageModal
+          visible={isImageModalVisible}
+          imageUrl={question?.image_url ? `http://192.168.133.11/TechForum/backend/${question.image_url}` : ''}
+          onClose={() => setIsImageModalVisible(false)}
+        />
   <Image
     source={{ uri: question.profile_image }}
     style={styles.authorImage}
@@ -1232,6 +1277,45 @@ const styles = StyleSheet.create({
     repliesContainer: {
       marginLeft: 56,
       marginTop: 8,
-    }
+    },
+    questionImage: {
+      width: '100%',
+      height: 200,
+      borderRadius: 8,
+      marginBottom: 16,
+      backgroundColor: '#f0f0f0', // Shows the image container even when image is loading
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalImageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalImage: {
+    flex: 1,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 30,
+    right: 20,
+    zIndex: 1,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(22, 13, 13, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontSize: 24,
+    marginBottom: 5,
+    fontWeight: 'bold',
+  },
   });
 export default QuestionDetailScreen;

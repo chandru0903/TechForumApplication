@@ -5,7 +5,6 @@ import {
   ActivityIndicator, Animated, RefreshControl, Alert
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import axios from 'axios';
 import { useDarkMode } from './Context/DarkMode';
 import { useFocusEffect } from '@react-navigation/native';
 import PostCard from './components/PostCard';
@@ -216,80 +215,54 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
-  const handleLike = async (postId, reactionDetails) => {
+  const handleLike = async (postId) => {
     try {
       const userId = await AsyncStorage.getItem('userId');
       
-      const response = await fetch('http://192.168.133.11/TechForum/backend/post_reaction.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/post_reaction.php?action=react', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           post_id: postId,
           user_id: userId,
-          reaction_type: reactionDetails.newReaction || null
+          reaction_type: 'like'
         }),
       });
-      
+  
       const data = await response.json();
-      
       if (data.success) {
-        setPosts(prevPosts => 
-          prevPosts.map(post => 
-            post.id === postId 
-              ? {
-                  ...post, 
-                  user_reaction: reactionDetails.newReaction,
-                  likes_count: post.likes_count + (reactionDetails.likesDelta || 0),
-                  dislikes_count: post.dislikes_count + (reactionDetails.dislikesDelta || 0)
-                }
-              : post
-          )
-        );
-      } else {
-        Alert.alert('Error', data.message || 'Could not process reaction');
+        fetchPosts();
       }
     } catch (error) {
       console.error('Error handling like:', error);
-      Alert.alert('Error', 'Network error processing like');
     }
   };
 
   // Handle Dislike Reaction
-  const handleDislike = async (postId, reactionDetails) => {
+  const handleDislike = async (postId) => {
     try {
       const userId = await AsyncStorage.getItem('userId');
       
-      const response = await fetch('http://192.168.133.11/TechForum/backend/post_reaction.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/post_reaction.php?action=react', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           post_id: postId,
           user_id: userId,
-          reaction_type: reactionDetails.newReaction || null
+          reaction_type: 'dislike'
         }),
       });
-      
+  
       const data = await response.json();
-      
       if (data.success) {
-        setPosts(prevPosts => 
-          prevPosts.map(post => 
-            post.id === postId 
-              ? {
-                  ...post, 
-                  user_reaction: reactionDetails.newReaction,
-                  dislikes_count: post.dislikes_count + (reactionDetails.dislikesDelta || 0),
-                  likes_count: post.likes_count + (reactionDetails.likesDelta || 0)
-                }
-              : post
-          )
-        );
-      } else {
-        Alert.alert('Error', data.message || 'Could not process reaction');
+        fetchPosts();
       }
     } catch (error) {
       console.error('Error handling dislike:', error);
-      Alert.alert('Error', 'Network error processing dislike');
     }
   };
   const onRefresh = useCallback(() => {
@@ -301,7 +274,7 @@ const HomeScreen = ({ navigation }) => {
   // Lifecycle Effects
   useEffect(() => {
     fetchProfileData();
-    fetchPosts();
+    
   }, []);
 
   useFocusEffect(

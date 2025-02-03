@@ -32,6 +32,7 @@ const UserProfileScreen = ({ navigation }) => {
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState(null);
+  const [authToken, setAuthToken] = useState(null);
   const [slideAnim] = useState(new Animated.Value(0));
 
 
@@ -132,6 +133,7 @@ const UserProfileScreen = ({ navigation }) => {
                 onDislike={handleDislike}
                 onBookmark={handleBookmark}
                 onRefresh={fetchUserPosts}
+                navigation={navigation}
               />
             ))
           ) : (
@@ -168,7 +170,7 @@ const UserProfileScreen = ({ navigation }) => {
 
   const handleEditComment = async (commentId, content) => {
     try {
-      const response = await fetch('http://192.168.151.27/TechForum/backend/comment4post.php', {
+      const response = await fetch('http://192.168.133.11/TechForum/backend/comment4post.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
